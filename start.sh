@@ -30,6 +30,15 @@ URL_FILE="$HOME/CAD/ai-studio/.cache/studio-url.txt"
 rm -f "$URL_FILE"
 uv run --quiet python -m studio --control-port "$CONTROL_PORT" --port "$STUDIO_PORT" "$@" &
 STUDIO_PID=$!
+# Tablet neu eingesteckt oder USB-Debugging neu freigegeben: Weiterleitung von selbst erneuern.
+if [ -x "$ADB" ]; then
+  ( while kill -0 $STUDIO_PID 2>/dev/null; do
+      if "$ADB" get-state >/dev/null 2>&1 && ! "$ADB" reverse --list 2>/dev/null | grep -q "tcp:$STUDIO_PORT"; then
+        "$ADB" reverse "tcp:$STUDIO_PORT" "tcp:$STUDIO_PORT" >/dev/null 2>&1 && echo "Tablet wieder verbunden."
+      fi
+      sleep 3
+    done ) &
+fi
 trap 'kill $STUDIO_PID 2>/dev/null' EXIT INT TERM
 for _ in $(seq 1 40); do [ -s "$URL_FILE" ] && break; sleep 0.25; done
 
