@@ -49,6 +49,11 @@ Voraussetzungen: SolidCraft ≥ 0.44 (`solidcraft`, `solidcraft-cli` im `PATH`),
 ./start.sh
 ```
 
+Oder über den Startmenü-Eintrag **SolidCraft AI Studio** (`~/.local/share/applications/solidcraft-ai-studio.desktop`,
+ruft `start.sh` ohne Terminal auf: Meldungen als Benachrichtigung, Protokoll in `~/CAD/ai-studio/.cache/studio.log`).
+Läuft das Studio schon, verbindet ein zweiter Aufruf nur das Tablet neu. Wurde SolidCraft vom Skript gestartet,
+beendet sich das Studio mit SolidCraft.
+
 Das Skript startet SolidCraft mit Steuerkanal (Port 7979), falls es noch nicht läuft. Es richtet die
 USB-Weiterleitung ein, startet das Studio und öffnet die Oberfläche in Firefox auf dem Tablet. Den
 Link mit Zugangsschlüssel gibt es auf der Konsole aus, er steht auch in
