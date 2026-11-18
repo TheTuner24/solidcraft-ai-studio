@@ -31,6 +31,10 @@ Tablet (Firefox)                      PC
 - **Agent:** Ein langlebiger `claude -p`-Prozess (stream-json). Er hat keine eingebauten Werkzeuge,
   also keine Shell und keinen Dateizugriff, sondern nur den SolidCraft-MCP-Server. Dateipfade sind
   auf `~/CAD/ai-studio` begrenzt, Speichern, Öffnen und Export sind ihm gesperrt.
+- **Sprache:** Das Mikrofon nimmt im Browser auf (MediaRecorder, Opus), der PC erkennt den Text lokal mit
+  faster-whisper (`large-v3-turbo`, Deutsch, auf der GPU, etwa 0,3 s pro Satz). Es geht kein Audio ins Internet.
+  Das Modell (~1,6 GB) wird beim ersten Start geladen und bleibt im Grafikspeicher (~1,5 GB).
+  Abschalten mit `--no-speech`, anderes Modell mit `STUDIO_WHISPER_MODEL`.
 - **Sicherheit:** Der Dienst lauscht nur auf `127.0.0.1` und prüft den Host-Header. Er braucht einen
   Zugangsschlüssel (`~/CAD/ai-studio/.cache/token`, löschen erzeugt einen neuen), der als Cookie gesetzt wird. Das Tablet kommt
   per `adb reverse` über USB. Ein API-Schlüssel liegt weder im Browser noch im Dienst: Claude Code
@@ -71,6 +75,7 @@ Optionen: `./start.sh --model sonnet` (anderes Modell), Umgebungsvariablen `CONT
 | ein Finger | Modell drehen |
 | zwei Finger | zoomen und verschieben |
 | Maus am PC | links zeichnen, rechts drehen, Mitte verschieben, Rad zoomen |
+| 🎤 antippen, sprechen, nochmal antippen | gesprochener Text kommt ins Eingabefeld, prüfen, dann senden |
 | Strg+Enter im Textfeld | senden |
 
 Der Handballen wird ignoriert, solange der Stift aktiv ist. Mit „An PC“ übernimmt die SolidCraft-App
@@ -97,7 +102,8 @@ Eine KI-Runde dauerte im Test 10–20 Sekunden.
 
 - Mit echtem S Pen auf dem Tablet ist noch nicht getestet. Das Zeichnen läuft über Pointer Events
   mit `pointerType === 'pen'`. Die Erkennung der S-Pen-Taste als Radierer ist noch nicht geprüft.
-- Noch keine Spracheingabe, nur Text.
+- Die Spracheingabe ist mit Aufnahmen getestet, aber noch nicht mit dem Mikrofon des Tablets. Firefox fragt
+  beim ersten Mal nach der Mikrofon-Erlaubnis.
 - Die Ansicht auf dem Tablet ist ein Netz-Export: Sie zeigt Flächen und Kanten, aber keine
   Skizzen, Achsen oder Bemaßungen aus SolidCraft.
 - Der Agent bekommt Freihandskizzen als Bild. Formen erkennt er gut, Maße müssen aus dem Text kommen.
@@ -107,8 +113,7 @@ Eine KI-Runde dauerte im Test 10–20 Sekunden.
 ## Nächste Schritte
 
 1. Test auf dem Galaxy Tab mit S Pen: Handballen, Druck, S-Pen-Taste, Zwei-Finger-Gesten.
-2. Spracheingabe: Push-to-Talk im Browser, Erkennung lokal mit faster-whisper auf der GPU, optional
-   Vorlesen mit Piper. Ohne Google, ohne Cloud.
+2. Sprache weiter: optional sofort senden, Antworten mit Piper vorlesen.
 3. Fotos von Papierskizzen importieren (Kamera oder Datei im Browser, als Bild an den Agenten).
 4. Rückfragen des Agenten mit Antwort-Knöpfen. Bevor der Agent ändert, zeigt das Tablet Kanten und
    Flächen hervorgehoben (über `select.set`), der Benutzer bestätigt.

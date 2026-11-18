@@ -413,6 +413,41 @@ $('#composer').addEventListener('submit', (e) => {
   $('#text').value = '';
   strokes = []; drawStrokes();
 });
+// ---------- Sprache: antippen, sprechen, antippen; der Text landet im Eingabefeld ----------
+let recorder = null;
+async function startRecording() {
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+  } catch (e) { toast('Kein Mikrofon-Zugriff: ' + e.message); return; }
+  const type = ['audio/ogg;codecs=opus', 'audio/webm;codecs=opus'].find((t) => MediaRecorder.isTypeSupported(t));
+  recorder = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+  const chunks = [];
+  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  recorder.onstop = async () => {
+    stream.getTracks().forEach((t) => t.stop());
+    $('#mic').classList.remove('rec'); $('#mic').classList.add('wait');
+    try {
+      const r = await fetch('/stt', { method: 'POST', body: new Blob(chunks, { type: recorder.mimeType }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || r.statusText);
+      if (j.text) {
+        const t = $('#text');
+        t.value = (t.value.trim() ? t.value.trim() + ' ' : '') + j.text;
+        t.focus(); t.setSelectionRange(t.value.length, t.value.length);
+      } else toast('Nichts verstanden.');
+    } catch (e) { toast('Spracherkennung: ' + e.message); }
+    $('#mic').classList.remove('wait');
+    recorder = null;
+  };
+  recorder.start();
+  $('#mic').classList.add('rec');
+}
+$('#mic').addEventListener('click', () => {
+  if ($('#mic').classList.contains('wait')) return;
+  if (recorder && recorder.state === 'recording') recorder.stop(); else startRecording();
+});
+
 $('#text').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) $('#composer').requestSubmit();
 });

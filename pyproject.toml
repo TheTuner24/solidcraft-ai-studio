@@ -3,7 +3,14 @@ name = "solidcraft-ai-studio"
 version = "0.1.0"
 description = "Tablet-Oberfläche mit Stift und KI-Agent für SolidCraft"
 requires-python = ">=3.11"
-dependencies = ["aiohttp>=3.10"]
+dependencies = [
+    "aiohttp>=3.10",
+    "av>=18.1.0",
+    "faster-whisper>=1.2.1",
+    "numpy>=2.4.6",
+    "nvidia-cublas-cu12>=12.9.3.13",
+    "nvidia-cudnn-cu12>=9.28.1.4",
+]
 
 [project.scripts]
 solidcraft-studio = "studio.__main__:main"

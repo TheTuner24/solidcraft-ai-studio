@@ -15,6 +15,7 @@ from aiohttp import WSMsgType, web
 
 from .agent import Agent
 from .solidcraft import ControlClient, ControlError
+from .stt import SpeechToText
 
 log = logging.getLogger("studio")
 
@@ -29,7 +30,7 @@ def safe_name(name: str) -> str:
 
 class Studio:
     def __init__(self, control_port: int, projects_dir: Path, host: str, port: int,
-                 model: str | None):
+                 model: str | None, speech: bool = True):
         self.control_port = control_port
         self.projects_dir = projects_dir
         self.cache_dir = projects_dir / ".cache"
@@ -39,6 +40,7 @@ class Studio:
         self.watch = ControlClient(control_port)       # Änderungs-Ereignisse
         self.agent = Agent(control_port, projects_dir, self._agent_event, model)
         self.clients: set[web.WebSocketResponse] = set()
+        self.stt = SpeechToText() if speech else None
         self.revision: int | None = None
         self.model_rev = 0
         self._export_lock = asyncio.Lock()
@@ -340,6 +342,20 @@ class Studio:
         # seitenübergreifend und schickt ein Strict-Cookie im Folgeaufruf nicht mit.
         return web.FileResponse(WEB_DIR / "index.html", headers={"Cache-Control": "no-store"})
 
+    async def speech(self, request: web.Request) -> web.Response:
+        if not self.stt:
+            raise web.HTTPNotFound(text="Spracheingabe ist abgeschaltet.")
+        audio = await request.read()
+        if not audio or len(audio) > MAX_IMAGE_BYTES:
+            raise web.HTTPBadRequest(text="Keine oder zu lange Aufnahme.")
+        try:
+            text, secs = await self.stt.transcribe(audio)
+        except Exception as e:
+            log.exception("Spracherkennung fehlgeschlagen")
+            return web.json_response({"error": f"Spracherkennung fehlgeschlagen: {e}"}, status=500)
+        log.info("Sprache erkannt in %.2f s: %s", secs, text)
+        return web.json_response({"text": text, "seconds": round(secs, 2)})
+
     async def model(self, request: web.Request) -> web.StreamResponse:
         path = self.cache_dir / "model.glb"
         if not path.exists():
@@ -377,6 +393,7 @@ class Studio:
         app.router.add_get("/", self.index)
         app.router.add_get("/ws", self.websocket)
         app.router.add_get("/model.glb", self.model)
+        app.router.add_post("/stt", self.speech)
         app.router.add_static("/", WEB_DIR, show_index=False)
         app.on_response_prepare.append(self._no_cache)
         return app
@@ -394,5 +411,7 @@ class Studio:
         link.chmod(0o600)
         print(f"\nSolidCraft AI Studio läuft.\n  Tablet/PC: {url}\n", flush=True)
         asyncio.create_task(self.start_watch())
+        if self.stt:
+            asyncio.create_task(self.stt.ensure_loaded())   # erste Aufnahme ohne Wartezeit
         while True:
             await asyncio.sleep(3600)

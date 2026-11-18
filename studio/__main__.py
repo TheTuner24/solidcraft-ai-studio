@@ -13,11 +13,12 @@ def main() -> None:
     ap.add_argument("--host", default="127.0.0.1", help="nur lokal; das Tablet kommt per adb reverse")
     ap.add_argument("--projects", type=Path, default=Path.home() / "CAD" / "ai-studio")
     ap.add_argument("--model", default=None, help="Claude-Modell (Standard: wie Claude Code)")
+    ap.add_argument("--no-speech", action="store_true", help="Spracheingabe (Whisper) abschalten")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     logging.getLogger("aiohttp.access").setLevel(logging.WARNING)
     try:
-        asyncio.run(Studio(a.control_port, a.projects, a.host, a.port, a.model).run())
+        asyncio.run(Studio(a.control_port, a.projects, a.host, a.port, a.model, not a.no_speech).run())
     except KeyboardInterrupt:
         pass
 
