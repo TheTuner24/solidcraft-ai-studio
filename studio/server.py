@@ -71,12 +71,22 @@ class Studio:
                 if not self.watch.connected:
                     self.watch.on_event = self._on_sc_event
                     info = await self.watch.call("control.subscribe")
+                    await self._adopt_open_design()
                     await self._design_changed(info)
                     log.info("Mit SolidCraft verbunden (Port %s)", self.control_port)
             except (OSError, ControlError) as e:
                 log.warning("SolidCraft nicht erreichbar: %s", e)
                 await self.broadcast({"type": "status", "solidcraft": False, "text": str(e)})
             await asyncio.sleep(3)
+
+    async def _adopt_open_design(self) -> None:
+        """Nach einem Neustart des Studios: ein schon offenes Studio-Projekt weiterverwenden."""
+        if self.project_path:
+            return
+        doc = await self.sc.call("document.inspect", {"timeline": False, "bodies": False})
+        path = Path(doc["path"]).resolve() if doc.get("path") else None
+        if path and path.parent == self.projects_dir.resolve():
+            self.project_path = path
 
     async def _on_sc_event(self, name: str, params: dict) -> None:
         if name == "design.changed":
@@ -356,12 +366,19 @@ class Studio:
             self.clients.discard(ws)
         return ws
 
+    @staticmethod
+    async def _no_cache(request: web.Request, response: web.StreamResponse) -> None:
+        # Nach einem Update soll das Tablet nie eine alte app.js aus dem Cache nehmen.
+        if not request.path.startswith("/vendor/"):
+            response.headers["Cache-Control"] = "no-cache"
+
     def app(self) -> web.Application:
         app = web.Application(middlewares=[self.guard], client_max_size=MAX_IMAGE_BYTES * 2)
         app.router.add_get("/", self.index)
         app.router.add_get("/ws", self.websocket)
         app.router.add_get("/model.glb", self.model)
         app.router.add_static("/", WEB_DIR, show_index=False)
+        app.on_response_prepare.append(self._no_cache)
         return app
 
     async def run(self) -> None:

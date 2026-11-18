@@ -87,9 +87,13 @@ function fitView(dir) {
 const VIEW_TOP = new THREE.Vector3(0, -0.0001, 1);
 const VIEW_ISO = new THREE.Vector3(1, -1, 0.8);
 
+let wantedRev = 0;
 function loadModel(rev, empty) {
+  wantedRev = rev;
   if (empty) { setModel(null); return; }
   loader.load(`/model.glb?rev=${rev}`, (gltf) => {
+    // Bei schnellen Änderungen kann ein älterer Download später fertig werden: verwerfen.
+    if (rev !== wantedRev) return;
     const root = gltf.scene;
     // SolidCraft exportiert in Metern mit Y oben (Wurzelknoten gedreht und skaliert):
     // die Wurzeltransformation zurücksetzen ergibt wieder mm mit Z oben.
