@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#16181d">
+<title>SolidCraft AI Studio</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": { "three": "/vendor/three.module.js", "three/addons/": "/vendor/addons/" } }
+</script>
+</head>
+<body>
+<header id="toolbar">
+  <div class="group" role="group" aria-label="Stift">
+    <button data-tool="pen" class="tool active" title="Zeichnen und markieren">✎<span>Stift</span></button>
+    <button data-tool="eraser" class="tool" title="Striche radieren">⌫<span>Radierer</span></button>
+    <button id="clear" title="Alle Striche löschen">✕<span>Striche</span></button>
+  </div>
+  <div class="group" role="group" aria-label="Modell">
+    <button id="undo" title="CAD-Schritt rückgängig">↶<span>Undo</span></button>
+    <button id="redo" title="CAD-Schritt wiederholen">↷<span>Redo</span></button>
+    <button id="revert" title="Letzte KI-Runde komplett zurücknehmen">⟲<span>KI-Runde</span></button>
+  </div>
+  <div class="group" role="group" aria-label="Ansicht">
+    <button id="fit" title="Modell einpassen">⤢<span>Einpassen</span></button>
+    <button id="top" title="Draufsicht">⊤<span>Oben</span></button>
+    <button id="iso" title="Isometrisch">◇<span>Iso</span></button>
+    <button id="topc" title="Diese Ansicht auf den PC übernehmen">🖥<span>An PC</span></button>
+  </div>
+  <div class="group" role="group" aria-label="Projekt">
+    <button id="new" title="Neues Bauteil">＋<span>Neu</span></button>
+    <button id="open" title="Bauteil öffnen">📂<span>Öffnen</span></button>
+    <button id="save" title="Im Studio-Ordner speichern">💾<span>Speichern</span></button>
+    <button id="fullscreen" title="Vollbild">⛶<span>Vollbild</span></button>
+  </div>
+  <div id="status"><span id="conn" class="dot"></span><span id="docname">–</span></div>
+</header>
+<main>
+  <section id="viewport">
+    <canvas id="overlay"></canvas>
+    <div id="hint">Stift: zeichnen und markieren · Finger: drehen, zwei Finger: zoomen und verschieben</div>
+    <div id="busy" hidden><span class="spinner"></span><span id="busytext">KI arbeitet…</span><button id="stop">Abbrechen</button></div>
+  </section>
+  <aside id="side">
+    <div id="log" aria-live="polite"></div>
+    <form id="composer">
+      <textarea id="text" rows="3" placeholder="Beschreibe, was entstehen oder sich ändern soll…"></textarea>
+      <div class="row">
+        <span id="markinfo"></span>
+        <button type="submit" id="send">Senden</button>
+      </div>
+    </form>
+  </aside>
+</main>
+<dialog id="filedlg">
+  <form method="dialog">
+    <h2>Bauteil öffnen</h2>
+    <p class="note">Dateien aus ~/CAD werden als Kopie im Studio-Ordner gespeichert, das Original bleibt unverändert.</p>
+    <ul id="files"></ul>
+    <button value="cancel">Schließen</button>
+  </form>
+</dialog>
+<div id="toast" hidden></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

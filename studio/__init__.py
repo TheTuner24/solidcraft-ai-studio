@@ -1,0 +1,1 @@
+"""SolidCraft AI Studio."""
