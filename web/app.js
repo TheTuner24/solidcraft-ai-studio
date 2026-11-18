@@ -457,6 +457,7 @@ function toast(text) {
 // Für automatische Tests: Weltpunkt (mm) → Bildschirmpunkt in der Ansicht.
 window.studioDebug = { worldToScreen: (x, y, z) => project(new THREE.Vector3(x, y, z)), state: () => ({ strokes: strokes.length, current: !!current, tool }) };
 
+if (location.search.includes('t=')) history.replaceState(null, '', '/');
 fitView(VIEW_ISO.clone());
 resize();
 animate();

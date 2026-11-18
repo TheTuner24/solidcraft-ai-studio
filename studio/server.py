@@ -34,7 +34,7 @@ class Studio:
         self.projects_dir = projects_dir
         self.cache_dir = projects_dir / ".cache"
         self.host, self.port = host, port
-        self.token = secrets.token_urlsafe(24)
+        self.token = self._load_token()
         self.sc = ControlClient(control_port)          # Befehle
         self.watch = ControlClient(control_port)       # Änderungs-Ereignisse
         self.agent = Agent(control_port, projects_dir, self._agent_event, model)
@@ -47,6 +47,21 @@ class Studio:
         self.turn_no = 0
         self.project_path: Path | None = None   # Datei im Studio-Ordner, in die gespeichert wird
         self.log_lines: list[dict] = []          # Verlauf für neu verbundene Tablets
+
+    def _load_token(self) -> str:
+        """Bleibt über Neustarts gleich, damit das Tablet angemeldet bleibt (Datei nur für den Benutzer)."""
+        path = self.cache_dir / "token"
+        try:
+            tok = path.read_text().strip()
+            if len(tok) >= 24:
+                return tok
+        except FileNotFoundError:
+            pass
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        tok = secrets.token_urlsafe(24)
+        path.write_text(tok)
+        path.chmod(0o600)
+        return tok
 
     # ---------- Verbindung zu SolidCraft ----------
 
@@ -307,14 +322,12 @@ class Studio:
             raise web.HTTPUnauthorized(text="Bitte den Link mit Zugangsschlüssel öffnen (siehe Konsole).")
         resp = await handler(request)
         if request.query.get("t"):
-            resp.set_cookie("studio", self.token, httponly=True, samesite="Strict", max_age=86400 * 30)
+            resp.set_cookie("studio", self.token, httponly=True, samesite="Lax", max_age=86400 * 30)
         return resp
 
     async def index(self, request: web.Request) -> web.StreamResponse:
-        if request.query.get("t"):
-            resp = web.Response(status=302, headers={"Location": "/"})
-            resp.set_cookie("studio", self.token, httponly=True, samesite="Strict", max_age=86400 * 30)
-            return resp
+        # Kein Redirect: Firefox auf Android behandelt einen per App geöffneten Link als
+        # seitenübergreifend und schickt ein Strict-Cookie im Folgeaufruf nicht mit.
         return web.FileResponse(WEB_DIR / "index.html", headers={"Cache-Control": "no-store"})
 
     async def model(self, request: web.Request) -> web.StreamResponse:

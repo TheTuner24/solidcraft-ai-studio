@@ -32,7 +32,7 @@ Tablet (Firefox)                      PC
   also keine Shell und keinen Dateizugriff, sondern nur den SolidCraft-MCP-Server. Dateipfade sind
   auf `~/CAD/ai-studio` begrenzt, Speichern, Öffnen und Export sind ihm gesperrt.
 - **Sicherheit:** Der Dienst lauscht nur auf `127.0.0.1` und prüft den Host-Header. Er braucht einen
-  Zugangsschlüssel, der bei jedem Start neu erzeugt und als Cookie gesetzt wird. Das Tablet kommt
+  Zugangsschlüssel (`~/CAD/ai-studio/.cache/token`, löschen erzeugt einen neuen), der als Cookie gesetzt wird. Das Tablet kommt
   per `adb reverse` über USB. Ein API-Schlüssel liegt weder im Browser noch im Dienst: Claude Code
   nutzt die Anmeldung auf dem PC.
 - **Nichts geht verloren:** Vor jeder KI-Runde setzt das Studio einen Checkpoint (`edit.checkpoint`).
