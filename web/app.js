@@ -362,6 +362,14 @@ function handle(m) {
     case 'error': toast(m.text); break;
     case 'reset': $('#log').innerHTML = ''; firstModel = true; strokes = []; drawStrokes(); break;
     case 'files': showFiles(m.files); break;
+    case 'backend': {
+      const b = $('#backend'), local = m.mode === 'lokal';
+      b.classList.toggle('lokal', local);
+      b.innerHTML = local ? '⌂<span>Lokal</span>' : '☁<span>Online</span>';
+      b.title = local ? `KI lokal: ${m.local_model} über Ollama. Antippen für Online (Claude).`
+                      : 'KI online: Claude. Antippen für Lokal (Ollama).';
+      break;
+    }
   }
 }
 
@@ -394,7 +402,7 @@ function setBusy(b) {
   busy = b;
   $('#busy').hidden = !b;
   $('#send').disabled = b;
-  for (const id of ['#revert', '#new', '#open', '#save']) $(id).disabled = b;
+  for (const id of ['#revert', '#new', '#open', '#save', '#backend']) $(id).disabled = b;
   if (b) { $('#undo').disabled = true; $('#redo').disabled = true; }
 }
 
@@ -469,6 +477,12 @@ $('#new').onclick = () => {
   if (name !== null) send({ type: 'new', name });
 };
 $('#open').onclick = () => send({ type: 'list' });
+$('#backend').onclick = () => {
+  const local = $('#backend').classList.contains('lokal');
+  if (confirm(local ? 'Auf Online (Claude) umschalten? Das Gespräch mit dem Agenten beginnt neu.'
+                    : 'Auf Lokal (Ollama) umschalten? Das Gespräch mit dem Agenten beginnt neu.'))
+    send({ type: 'backend', mode: local ? 'online' : 'lokal' });
+};
 $('#save').onclick = () => send({ type: 'save' });
 $('#stop').onclick = () => send({ type: 'stop' });
 $('#fullscreen').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();

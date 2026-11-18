@@ -14,6 +14,7 @@ from pathlib import Path
 from aiohttp import WSMsgType, web
 
 from .agent import Agent
+from .local_agent import LocalAgent
 from .solidcraft import ControlClient, ControlError
 from .stt import SpeechToText
 
@@ -30,7 +31,7 @@ def safe_name(name: str) -> str:
 
 class Studio:
     def __init__(self, control_port: int, projects_dir: Path, host: str, port: int,
-                 model: str | None, speech: bool = True):
+                 model: str | None, speech: bool = True, local_model: str = "qwen3:8b"):
         self.control_port = control_port
         self.projects_dir = projects_dir
         self.cache_dir = projects_dir / ".cache"
@@ -38,7 +39,11 @@ class Studio:
         self.token = self._load_token()
         self.sc = ControlClient(control_port)          # Befehle
         self.watch = ControlClient(control_port)       # Änderungs-Ereignisse
-        self.agent = Agent(control_port, projects_dir, self._agent_event, model)
+        self.agents = {
+            "online": Agent(control_port, projects_dir, self._agent_event, model),
+            "lokal": LocalAgent(control_port, projects_dir, self._agent_event, local_model),
+        }
+        self.backend = self._load_backend()
         self.clients: set[web.WebSocketResponse] = set()
         self.stt = SpeechToText() if speech else None
         self.revision: int | None = None
@@ -49,6 +54,37 @@ class Studio:
         self.turn_no = 0
         self.project_path: Path | None = None   # Datei im Studio-Ordner, in die gespeichert wird
         self.log_lines: list[dict] = []          # Verlauf für neu verbundene Tablets
+
+    @property
+    def agent(self):
+        return self.agents[self.backend]
+
+    def _load_backend(self) -> str:
+        try:
+            mode = json.loads((self.cache_dir / "backend.json").read_text()).get("mode")
+            return mode if mode in self.agents else "online"
+        except (FileNotFoundError, ValueError):
+            return "online"
+
+    def backend_info(self) -> dict:
+        a = self.agents["lokal"]
+        return {"type": "backend", "mode": self.backend, "local_model": a.model}
+
+    async def set_backend(self, mode: str) -> None:
+        if mode not in self.agents:
+            raise ValueError("Unbekannter Modus")
+        self._require_idle()
+        if mode == self.backend:
+            return
+        await self.agent.reset()
+        self.backend = mode
+        (self.cache_dir / "backend.json").write_text(json.dumps({"mode": mode}))
+        note = {"type": "agent", "kind": "text", "text":
+                "KI jetzt lokal (" + self.agents["lokal"].model + ", Ollama): nichts verlässt den Rechner."
+                if mode == "lokal" else "KI jetzt online (Claude)."}
+        self.log_lines.append(note)
+        await self.broadcast(self.backend_info())
+        await self.broadcast(note)
 
     def _load_token(self) -> str:
         """Bleibt über Neustarts gleich, damit das Tablet angemeldet bleibt (Datei nur für den Benutzer)."""
@@ -234,11 +270,14 @@ class Studio:
                 await self.agent.reset()
                 self.log_lines.clear()
                 await self.broadcast({"type": "reset"})
+                await self.broadcast(self.backend_info())
             elif t == "save":
                 self._require_idle()
                 path = await self.save(data.get("name"))
                 await self.broadcast({"type": "saved", "path": str(path)})
                 await self.schedule_export()
+            elif t == "backend":
+                await self.set_backend(data.get("mode", ""))
             elif t == "list":
                 await ws.send_json({"type": "files", "files": self.list_designs()})
             elif t == "open":
@@ -368,6 +407,7 @@ class Studio:
         await ws.prepare(request)
         self.clients.add(ws)
         await ws.send_json({"type": "hello", "busy": self.agent.busy, "log": self.log_lines})
+        await ws.send_json(self.backend_info())
         if self.revision is not None:
             await self.schedule_export()
         try:
