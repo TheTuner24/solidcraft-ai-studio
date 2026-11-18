@@ -118,3 +118,8 @@ Eine KI-Runde dauerte im Test 10–20 Sekunden.
 4. Rückfragen des Agenten mit Antwort-Knöpfen. Bevor der Agent ändert, zeigt das Tablet Kanten und
    Flächen hervorgehoben (über `select.set`), der Benutzer bestätigt.
 5. HTTPS mit eigener CA für den Betrieb im WLAN ohne USB.
+
+## Lizenz
+
+MIT, siehe [LICENSE](LICENSE). Mitgeliefert ist [three.js](https://threejs.org) 0.170.0 in `web/vendor/`
+(MIT, siehe `web/vendor/THREE-LICENSE`). SolidCraft selbst ist nicht enthalten, es wird separat installiert.
