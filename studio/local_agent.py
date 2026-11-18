@@ -135,9 +135,12 @@ class LocalAgent:
             await self.on_event({"kind": "done", "ok": True, "ms": int((time.monotonic() - t0) * 1000)})
         except asyncio.CancelledError:
             await self.on_event({"kind": "done", "ok": False, "error": "abgebrochen"})
+        except asyncio.TimeoutError:
+            await self.on_event({"kind": "done", "ok": False, "error":
+                                 "Das lokale Modell hat zu lange gebraucht (Zeitüberschreitung)."})
         except Exception as e:
             log.exception("Lokaler Agent")
-            await self.on_event({"kind": "done", "ok": False, "error": str(e)})
+            await self.on_event({"kind": "done", "ok": False, "error": f"{type(e).__name__}: {e}"})
         finally:
             self.busy = False
             self._done.set()

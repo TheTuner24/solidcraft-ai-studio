@@ -35,6 +35,11 @@ Tablet (Firefox)                      PC
   faster-whisper (`large-v3-turbo`, Deutsch, auf der GPU, etwa 0,3 s pro Satz). Es geht kein Audio ins Internet.
   Das Modell (~1,6 GB) wird beim ersten Start geladen und bleibt im Grafikspeicher (~1,5 GB).
   Abschalten mit `--no-speech`, anderes Modell mit `STUDIO_WHISPER_MODEL`.
+- **KI online oder lokal:** Der Knopf „Online/Lokal“ schaltet zwischen Claude (Claude Code, Cloud) und einem
+  Ollama-Modell auf dem PC um (`--local-model`, Standard `qwen3:8b`). Der lokale Agent nutzt dieselben
+  SolidCraft-Werkzeuge über MCP. **Experimentell:** Im Test (RTX 4060, 8 GB) hat `qwen3:8b` die Halterung
+  nicht gebaut. Es scheiterte nach einem Fehler im ersten Versuch, nach 2,5 Minuten. Mit Denkmodus überschritt
+  schon ein einzelner Schritt 10 Minuten, weil das Modell neben Whisper nicht ganz in den Grafikspeicher passt.
 - **Sicherheit:** Der Dienst lauscht nur auf `127.0.0.1` und prüft den Host-Header. Er braucht einen
   Zugangsschlüssel (`~/CAD/ai-studio/.cache/token`, löschen erzeugt einen neuen), der als Cookie gesetzt wird. Das Tablet kommt
   per `adb reverse` über USB. Ein API-Schlüssel liegt weder im Browser noch im Dienst: Claude Code
