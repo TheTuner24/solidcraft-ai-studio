@@ -15,6 +15,7 @@ def main() -> None:
     ap.add_argument("--model", default=None, help="Claude-Modell (Standard: wie Claude Code)")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    logging.getLogger("aiohttp.access").setLevel(logging.WARNING)
     try:
         asyncio.run(Studio(a.control_port, a.projects, a.host, a.port, a.model).run())
     except KeyboardInterrupt:
