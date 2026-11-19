@@ -27,7 +27,7 @@ updates can be taken without merging.
 | Undo/redo, "revert AI turn", saving without overwriting originals | ✅ / 🟡 partly tested |
 | S Pen: pressure, palm rejection, pen button erases | 🟡 implemented, verification pending |
 | Local AI via Ollama (toggle) | ⛔ experimental, not usable with 8 GB VRAM |
-| Line colours whose meaning is set by voice | 📋 planned |
+| Line colours: colour per stroke, you define the meaning by voice/text ("green is a Ø 4 hole") | ✅ tested (tablet use 🟡) |
 | Stroke vectorisation, native dimensioned SolidCraft sketches | 📋 planned |
 | Voice output (answers read aloud) | 📋 planned |
 | Wireless over Wi-Fi (no USB) | 📋 planned |
@@ -58,6 +58,10 @@ Tablet (Firefox)                      PC
   limited to the studio folder. The system prompt is in `studio/agent.py`.
 - **Voice:** The browser microphone records (MediaRecorder, Opus). The PC transcribes locally with
   faster-whisper (`large-v3-turbo`, German). No audio goes to the internet.
+- **Colours:** Every stroke keeps its colour. It is visible in the picture and included in the stroke
+  data. You tell the AI in words what a colour means, there are no built-in colour functions. The AI
+  reports the legend back, the studio shows it on the palette, saves it with the project and passes it
+  to every turn. Several colours with different tasks in one turn work.
 - **Security:**
   - The service listens on `127.0.0.1` only and checks the Host header.
   - It requires an access key, stored as a cookie.
@@ -112,6 +116,7 @@ sed "s#@DIR@#$PWD#" packaging/solidcraft-ai-studio.desktop.in > ~/.local/share/a
 | Input | Effect |
 |---|---|
 | pen | draw and mark (pressure = line width) |
+| colour dot in the toolbar | choose the stroke colour. The meaning you gave the AI is shown below it. |
 | pen button or "Radierer" tool | erase strokes |
 | one finger | rotate the model |
 | two fingers | zoom and pan |

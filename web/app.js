@@ -141,6 +141,13 @@ function scCamera() {
 // Jeder Punkt eines Strichs bekommt einen 3D-Anker (Treffer am Modell, sonst Bodenebene Z=0,
 // sonst Ebene durch das Blickziel), so bleiben Striche beim Drehen am Modell kleben.
 let tool = 'pen';
+// Strichfarben: nur Unterscheidung, keine feste Bedeutung. Was eine Farbe meint, sagt der Benutzer.
+const COLORS = [
+  { name: 'rot', hex: '#ff3b3b' }, { name: 'blau', hex: '#2f8cff' }, { name: 'grün', hex: '#2ecc55' },
+  { name: 'orange', hex: '#ff9a1f' }, { name: 'violett', hex: '#b45cff' }, { name: 'türkis', hex: '#19d3c5' },
+];
+let color = COLORS[0];
+let legend = {};
 let strokes = [];
 let current = null;
 let lastPen = 0;
@@ -190,15 +197,18 @@ function drawStrokes() {
   for (const s of [...strokes, current].filter(Boolean)) {
     const pts = s.anchors && s.cam !== lastCamKeyAtDraw() ? s.anchors.map((a) => project(a.p)) : s.pts;
     if (pts.length < 1) continue;
-    octx.strokeStyle = s === current ? '#ff7a7a' : '#ff4d4d';
+    const hex = (s.color || COLORS[0]).hex;
+    octx.strokeStyle = hex;
+    octx.globalAlpha = s === current ? 0.8 : 1;
     octx.lineCap = 'round'; octx.lineJoin = 'round';
     for (let i = 1; i < pts.length; i++) {
       const pr = s.pr[i] ?? 0.5;
       octx.lineWidth = 1.5 + pr * 4;
       octx.beginPath(); octx.moveTo(pts[i - 1][0], pts[i - 1][1]); octx.lineTo(pts[i][0], pts[i][1]); octx.stroke();
     }
-    if (pts.length === 1) { octx.fillStyle = '#ff4d4d'; octx.beginPath(); octx.arc(pts[0][0], pts[0][1], 3, 0, 7); octx.fill(); }
+    if (pts.length === 1) { octx.fillStyle = hex; octx.beginPath(); octx.arc(pts[0][0], pts[0][1], 3, 0, 7); octx.fill(); }
   }
+  octx.globalAlpha = 1;
   updateMarkInfo();
 }
 function lastCamKeyAtDraw() { return lastCamKey; }
@@ -260,7 +270,7 @@ viewport.addEventListener('pointerdown', (e) => {
   viewport.setPointerCapture(e.pointerId);
   const [x, y] = local(e);
   if (isEraserButton(e)) { current = { erase: true, id: e.pointerId }; eraseAt(x, y); return; }
-  current = { id: e.pointerId, pts: [[x, y]], pr: [e.pressure || 0.5] };
+  current = { id: e.pointerId, pts: [[x, y]], pr: [e.pressure || 0.5], color };
   drawStrokes();
 }, true);
 viewport.addEventListener('pointermove', (e) => {
@@ -291,7 +301,10 @@ viewport.addEventListener('pointercancel', endStroke, true);
 function updateMarkInfo() {
   const n = strokes.length;
   const onModel = strokes.filter((s) => s.anchors?.some((a) => a.on === 'modell')).length;
-  $('#markinfo').textContent = n ? `${n} Strich${n > 1 ? 'e' : ''}${onModel ? `, ${onModel} auf dem Modell` : ''}` : '';
+  const byColor = {};
+  for (const s of strokes) byColor[s.color.name] = (byColor[s.color.name] || 0) + 1;
+  const colors = Object.keys(byColor).length > 1 ? ' (' + Object.entries(byColor).map(([c, k]) => `${k}× ${c}`).join(', ') + ')' : '';
+  $('#markinfo').textContent = n ? `${n} Strich${n > 1 ? 'e' : ''}${colors}${onModel ? `, ${onModel} auf dem Modell` : ''}` : '';
 }
 
 const r3 = (v) => v ? v.toArray().map((c) => +c.toFixed(2)) : null;
@@ -302,6 +315,7 @@ function marksPayload() {
     const fmt = (a) => ({ p: r3(a.p), n: a.n ? r3(a.n) : undefined, body: a.body || undefined, auf: a.on });
     return {
       strich: i + 1,
+      farbe: s.color.name,
       art: s.closed ? 'geschlossen (eingekreist)' : 'offen',
       punkte_entlang: hits.map(fmt),
       punkte_innen: s.inside.filter((a) => a.on === 'modell').map(fmt),
@@ -362,6 +376,7 @@ function handle(m) {
     case 'error': toast(m.text); break;
     case 'reset': $('#log').innerHTML = ''; firstModel = true; strokes = []; drawStrokes(); break;
     case 'files': showFiles(m.files); break;
+    case 'legend': legend = m.legend || {}; renderPalette(); break;
     case 'backend': {
       const b = $('#backend'), local = m.mode === 'lokal';
       b.classList.toggle('lokal', local);
@@ -460,6 +475,26 @@ $('#text').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) $('#composer').requestSubmit();
 });
 
+function renderPalette() {
+  const pal = $('#palette');
+  pal.innerHTML = '';
+  for (const c of COLORS) {
+    const b = document.createElement('button');
+    b.dataset.color = c.name;
+    b.className = c === color ? 'active' : '';
+    const meaning = legend[c.name];
+    b.title = meaning ? `${c.name}: ${meaning}` : `${c.name} (Bedeutung sagst du der KI, z. B. „${c.name} ist …“)`;
+    b.innerHTML = `<i class="swatch" style="background:${c.hex}"></i><span>${meaning || c.name}</span>`;
+    b.onclick = () => {
+      color = c;
+      if (tool === 'eraser') document.querySelector('[data-tool="pen"]').click();
+      renderPalette();
+    };
+    pal.append(b);
+  }
+}
+renderPalette();
+
 document.querySelectorAll('[data-tool]').forEach((b) => b.addEventListener('click', () => {
   tool = b.dataset.tool;
   document.querySelectorAll('[data-tool]').forEach((x) => x.classList.toggle('active', x === b));
@@ -508,7 +543,26 @@ function toast(text) {
 }
 
 // Für automatische Tests: Weltpunkt (mm) → Bildschirmpunkt in der Ansicht.
-window.studioDebug = { worldToScreen: (x, y, z) => project(new THREE.Vector3(x, y, z)), state: () => ({ strokes: strokes.length, current: !!current, tool }) };
+window.studioDebug = { worldToScreen: (x, y, z) => project(new THREE.Vector3(x, y, z)), state: () => ({ strokes: strokes.length, current: !!current, tool, color: color.name, legend,
+    strokeColors: strokes.map((s) => s.color.name), pressures: strokes.map((s) => s.pr) }),
+  marks: () => marksPayload(),
+  overlayPixels: () => {
+    const d = octx.getImageData(0, 0, overlay.width, overlay.height).data;
+    let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++;
+    return n;
+  },
+  // Anteil der Pixel im übertragenen Bild, die der Farbe nahekommen (Prüfung „Farbe im Bild“).
+  imageHasColor: async (hex) => {
+    const img = new Image(); img.src = snapshot(); await img.decode();
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - r) + Math.abs(d[i + 1] - g) + Math.abs(d[i + 2] - b) < 60) n++;
+    return n;
+  },
+};
 
 if (location.search.includes('t=')) history.replaceState(null, '', '/');
 fitView(VIEW_ISO.clone());

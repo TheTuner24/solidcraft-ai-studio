@@ -72,6 +72,8 @@ const waitIdle = async () => {
   await page.waitForFunction(() => document.querySelector('#busy').hidden, null, { timeout: 15 * 60 * 1000 });
   await page.waitForTimeout(2500);   // Modell-Export und Nachladen
 };
+const overlayClear = async (t) => ok((await page.evaluate(() => window.studioDebug.overlayPixels())) === 0 && (await state()).strokes === 0,
+  `${t}: Striche nach dem Senden entfernt`);
 const lastAgentText = () => page.$$eval('#log .msg.agent, #log .msg.error', (e) => e.at(-1)?.textContent || '');
 
 console.log(`Funktionstest (${MODE}) gegen ${URL.replace(/t=[^&]+/, 't=…')}`);
@@ -87,6 +89,18 @@ if (MODE === 'smoke') {
   ok(s.strokes === 1 && !s.current, 'Strich wird als ein abgeschlossener Strich erkannt');
   const info = await page.textContent('#markinfo');
   ok(/1 Strich/.test(info), `Anzeige der Markierung: "${info}"`);
+  // Linienfarben: Farbe je Strich, in den Strichdaten und im übertragenen Bild
+  await page.click('#palette [data-color="blau"]');
+  ok((await state()).color === 'blau', 'Farbwahl: Blau ist aktiv');
+  await stroke([[box.x + box.width * 0.2, box.y + box.height * 0.3], [box.x + box.width * 0.35, box.y + box.height * 0.35]]);
+  s = await state();
+  ok(JSON.stringify(s.strokeColors) === '["rot","blau"]', `Jeder Strich behält seine Farbe: ${JSON.stringify(s.strokeColors)}`);
+  const marks = await page.evaluate(() => window.studioDebug.marks());
+  ok(marks.map((m) => m.farbe).join() === 'rot,blau', 'Strichdaten für die KI enthalten die Farbe je Strich');
+  ok(await page.evaluate(() => window.studioDebug.imageHasColor('#2f8cff')) > 30, 'Übertragenes Bild enthält den blauen Strich');
+  ok(/1× rot, 1× blau/.test(await page.textContent('#markinfo')), 'Anzeige zählt Striche je Farbe');
+  ok(await page.locator('#palette button').count() === 6, 'Palette mit 6 Farben');
+  await page.click('#palette [data-color="rot"]');
   await page.screenshot({ path: path.join(OUT, 'smoke-strich.png') });
   await page.click('#clear');
   s = await state();
@@ -105,6 +119,7 @@ if (MODE === 'smoke') {
   const v1 = await volume(), soll1 = 60 * 40 * 5 - 2 * Math.PI * 2.75 ** 2 * 5;
   ok(Math.abs(v1 - soll1) / soll1 < 0.01, `Runde 1: Platte mit Bohrungen, Volumen ${v1.toFixed(0)} mm³ (Soll ${soll1.toFixed(0)})`);
   console.log('     KI: ' + (await lastAgentText()).slice(0, 200));
+  await overlayClear('Runde 1');
   await page.screenshot({ path: path.join(OUT, 'full-1-platte.png') });
 
   await page.click('#iso'); await page.waitForTimeout(800);
@@ -115,7 +130,28 @@ if (MODE === 'smoke') {
   const v2 = await volume(), soll2 = soll1 - (64 - Math.PI * 16) * 5;
   ok(Math.abs(v2 - soll2) < 5, `Runde 2: eingekreiste Kante R 8 gerundet, Volumen ${v2.toFixed(0)} mm³ (Soll ${soll2.toFixed(0)})`);
   console.log('     KI: ' + (await lastAgentText()).slice(0, 200));
+  await overlayClear('Runde 2');
   await page.screenshot({ path: path.join(OUT, 'full-2-rundung.png') });
+
+  // Runde 3: zwei Farben mit verschiedenen Aufgaben in einer Runde, Bedeutung nur aus dem Text
+  await page.click('#top'); await page.waitForTimeout(500);
+  await page.click('#palette [data-color="grün"]');
+  await circleAround(await toScreen(0, 10, 5), 16, 16);
+  await page.click('#palette [data-color="violett"]');
+  await circleAround(await toScreen(-30, -20, 5), 18, 18);
+  await page.click('#palette [data-color="rot"]');
+  await page.fill('#text', 'Grün ist eine neue durchgehende Bohrung mit 4 mm Durchmesser, genau in der Mitte des grünen Kreises. ' +
+    'Violett markiert die senkrechte Eckkante, die bekommt eine Fase von 2 mm.');
+  await page.click('#send'); await waitIdle();
+  const v3 = await volume(), soll3 = soll2 - Math.PI * 4 * 5 - 2 * 2 / 2 * 5;
+  ok(Math.abs(v3 - soll3) < 5, `Runde 3: zwei Farben, zwei Aufgaben: Volumen ${v3.toFixed(0)} mm³ (Soll ${soll3.toFixed(0)})`);
+  const lg = (await state()).legend;
+  ok(lg['grün'] && lg['violett'], `Farblegende aus dem Text übernommen: ${JSON.stringify(lg)}`);
+  ok(!(await page.textContent('#log')).includes('<farblegende'), 'Steuerzeile der Legende ist im Dialog ausgeblendet');
+  ok((await page.textContent('#palette')).includes(lg['grün'] || '–'), 'Palette zeigt die Bedeutung an der Farbe');
+  console.log('     KI: ' + (await lastAgentText()).slice(0, 200));
+  await overlayClear('Runde 3');
+  await page.screenshot({ path: path.join(OUT, 'full-3-farben.png') });
 
   await page.click('#save'); await page.waitForTimeout(2500);
   const saved = (await page.textContent('#toast')) || '';

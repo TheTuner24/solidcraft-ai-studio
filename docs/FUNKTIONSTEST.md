@@ -43,6 +43,12 @@ OK   WebSocket-Verbindung zum Studio steht
 OK   Oberfläche geladen (three.js, Testschnittstelle)
 OK   Strich wird als ein abgeschlossener Strich erkannt
 OK   Anzeige der Markierung: "1 Strich, …"
+OK   Farbwahl: Blau ist aktiv
+OK   Jeder Strich behält seine Farbe: ["rot","blau"]
+OK   Strichdaten für die KI enthalten die Farbe je Strich
+OK   Übertragenes Bild enthält den blauen Strich
+OK   Anzeige zählt Striche je Farbe
+OK   Palette mit 6 Farben
 OK   „Striche löschen“ entfernt alle Striche
 Alle Prüfungen bestanden.
 ```
@@ -67,7 +73,12 @@ Ablauf:
 4. **Prüfung über den Steuerkanal:** Volumen ≈ 11 762 mm³ (Toleranz ±1 %)
 5. Iso-Ansicht, die senkrechte Kante bei (+30, +20) einkreisen, „Rundung mit acht Millimetern Radius“
 6. **Prüfung:** Volumen ≈ 11 694 mm³ (genau diese eine Kante gerundet, ±5 mm³)
-7. Speichern: `Funktionstest.sc` im Projektordner
+7. Draufsicht: **grün** eine Stelle einkreisen, **violett** die Ecke (−30, −20) einkreisen. Text:
+   „Grün ist eine neue durchgehende Bohrung mit 4 mm Durchmesser … Violett … Fase von 2 mm“
+8. **Prüfung:** Volumen ≈ 11 621 mm³ (Bohrung und Fase in einer Runde). Die Legende enthält grün und
+   violett, die Steuerzeile ist im Dialog ausgeblendet, die Palette zeigt die Bedeutung.
+9. Nach jeder Runde: Die Zeichenebene ist leer.
+10. Speichern: `Funktionstest.sc` im Projektordner
 
 Die Prüfung misst das Volumen der echten Geometrie in SolidCraft, sie verlässt sich nicht auf die
 Antwort der KI. Bilder der Ansicht landen in `tests/funktionstest/ergebnis/`. `SICHTBAR=1` zeigt
@@ -91,6 +102,7 @@ Beim ersten Mal den Link mit `?t=…` öffnen, danach merkt sich Firefox den Zug
 | B9 | Undo / Redo | einzelne CAD-Schritte zurück/vor | 🟡 |
 | B10 | „An PC“ | SolidCraft am PC zeigt dieselbe Ansicht | 🟡 |
 | B11 | Speichern | Meldung „Gespeichert: …/Name.sc“, Punkt • neben dem Namen verschwindet | ✅ (automatisch) |
+| B13 | Farbpunkt mit dem Stift antippen, Strich zeichnen | Strich in der gewählten Farbe; Bedeutung erscheint nach der KI-Antwort unter dem Farbpunkt | 🟡 |
 | B12 | Kabel ziehen, wieder einstecken | nach wenigen Sekunden wieder verbunden (Seite neu laden) | 🟡 |
 
 Legende: ✅ geprüft · 🟡 noch zu prüfen. Ergebnisse gehören in [STAND.md](../STAND.md).
@@ -107,7 +119,8 @@ A reproducible test for anyone setting up SolidCraft AI Studio.
      not change the design.
   3. For the full test, run `npm run full` against a **separate test instance** (commands in A3).
      It builds a 60 × 40 × 5 mm plate with two Ø 5.5 mm holes from a sketch and a text prompt,
-     then fillets one circled edge with R 8 and saves the part.
+     then fillets one circled edge with R 8. In a third turn two colours carry two different tasks
+     (green = new hole, violet = chamfer, meaning given only in the text), then the part is saved.
   4. Results are verified by **measuring the real geometry** through SolidCraft's control channel:
      volumes of 11 762 mm³ and 11 694 mm³.
 - **Part B (manual, tablet with pen):** the checklist above covers pen drawing, palm rejection,

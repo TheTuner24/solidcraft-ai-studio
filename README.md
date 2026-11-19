@@ -26,7 +26,7 @@ Schnittstellen von SolidCraft: den Steuerkanal (`solidcraft --control PORT`) und
 | Undo/Redo, „KI-Runde zurück“, Speichern ohne Originale zu überschreiben | ✅ / 🟡 teilweise getestet |
 | S Pen: Druck, Handballen ignorieren, Stifttaste radiert | 🟡 implementiert, Prüfung offen |
 | KI lokal über Ollama (Umschalter) | ⛔ experimentell, mit 8 GB Grafikspeicher nicht brauchbar |
-| Linienfarben mit Bedeutung per Sprache | 📋 geplant |
+| Linienfarben: Farbe je Strich, Bedeutung legst du per Sprache/Text fest („grün ist eine Bohrung Ø 4“) | ✅ getestet (Tablet-Bedienung 🟡) |
 | Vektorisierung der Striche, native bemaßte SolidCraft-Skizzen | 📋 geplant |
 | Sprachausgabe (Antworten vorlesen) | 📋 geplant |
 | Drahtlos über WLAN (ohne USB) | 📋 geplant |
@@ -57,6 +57,10 @@ Tablet (Firefox)                      PC
   Dateipfade auf den Studio-Ordner begrenzt. Die Systemanweisung steht in `studio/agent.py`.
 - **Sprache:** Das Browser-Mikrofon nimmt auf (MediaRecorder, Opus). Der PC erkennt den Text lokal mit
   faster-whisper (`large-v3-turbo`, Deutsch). Es geht kein Audio ins Internet.
+- **Farben:** Jeder Strich trägt seine Farbe. Sie ist im Bild sichtbar und steht in den Strichdaten.
+  Was eine Farbe bedeutet, sagst du der KI in Worten, fest eingebaute Farbfunktionen gibt es nicht. Die
+  KI meldet die Legende zurück, das Studio zeigt sie an der Palette, speichert sie beim Projekt und gibt
+  sie jeder Runde mit. Mehrere Farben mit verschiedenen Aufgaben in einer Runde sind möglich.
 - **Sicherheit:**
   - Der Dienst lauscht nur auf `127.0.0.1` und prüft den Host-Header.
   - Er braucht einen Zugangsschlüssel als Cookie.
@@ -115,6 +119,7 @@ SolidCraft vom Skript gestartet, endet das Studio mit SolidCraft.
 | Eingabe | Wirkung |
 |---|---|
 | Stift | zeichnen und markieren (Druck = Strichbreite) |
+| Farbpunkt in der Leiste | Strichfarbe wählen. Unter dem Punkt steht die Bedeutung, die du der KI genannt hast. |
 | Stifttaste oder Werkzeug „Radierer“ | Striche radieren |
 | ein Finger | Modell drehen |
 | zwei Finger | zoomen und verschieben |

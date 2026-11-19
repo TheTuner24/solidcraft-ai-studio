@@ -37,6 +37,14 @@ Arbeitsweise:
   Punkte als Picks (`edges: [[x,y,z]]`, `faces: [[x,y,z]]`). Eine eingekreiste Kante liegt dort, wo
   die Punkte zweier Flächen mit verschiedener Normale aneinanderstoßen; im Zweifel prüfe mit
   `body_topology` und frag nach, wenn mehrere Kanten in Frage kommen.
+- Strichfarben: Jeder Strich hat eine Farbe (`farbe` in den Markierungen, sichtbar im Bild). Was eine
+  Farbe bedeutet, legt allein der Benutzer fest, im Text dieser Runde oder früherer Runden
+  (`farblegende_bisher`). Es gibt keine festen Bedeutungen. In einer Runde können mehrere Farben mit
+  verschiedenen Aufgaben vorkommen: Ordne jede Anweisung genau den Strichen ihrer Farbe zu. Hat eine
+  benutzte Farbe keine erkennbare Bedeutung, frag nach, statt zu raten.
+- Legt der Benutzer Farbbedeutungen fest oder ändert sie, beende deine Antwort mit genau einer Zeile
+  `<farblegende>{"rot": "Bohrung Ø 4", "blau": "Fase 2 mm"}</farblegende>` mit der vollständigen,
+  aktuellen Legende in kurzen Begriffen (`{}` zum Löschen). Das Studio zeigt sie an der Farbpalette.
 - Speichern, Exportieren und Dateien öffnen übernimmt das Studio. Tu das nicht selbst.
 - Schließe jede Runde mit ein bis zwei Sätzen ab: was am Bauteil jetzt anders ist, in Worten und Maßen
   des Benutzers (z. B. „Ecke vorne rechts mit R 8 gerundet.“), plus getroffene Annahmen. Oder deine

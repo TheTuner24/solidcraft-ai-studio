@@ -54,6 +54,7 @@ class Studio:
         self.turn_no = 0
         self.project_path: Path | None = None   # Datei im Studio-Ordner, in die gespeichert wird
         self.log_lines: list[dict] = []          # Verlauf für neu verbundene Tablets
+        self.legend: dict[str, str] = {}         # Farbe → Bedeutung, vom Benutzer festgelegt
 
     @property
     def agent(self):
@@ -125,6 +126,7 @@ class Studio:
         path = Path(doc["path"]).resolve() if doc.get("path") else None
         if path and path.parent == self.projects_dir.resolve():
             self.project_path = path
+            self._load_legend()
 
     async def _on_sc_event(self, name: str, params: dict) -> None:
         if name == "design.changed":
@@ -173,7 +175,23 @@ class Studio:
 
     # ---------- Agent ----------
 
+    LEGEND_RE = re.compile(r"<farblegende>\s*(\{.*?\})\s*</farblegende>", re.S)
+
     async def _agent_event(self, ev: dict) -> None:
+        if ev["kind"] == "text":
+            # Der Agent meldet die vom Benutzer festgelegten Farbbedeutungen als Markierung im Text.
+            m = self.LEGEND_RE.search(ev["text"])
+            if m:
+                try:
+                    legend = json.loads(m.group(1))
+                    if isinstance(legend, dict):
+                        await self.set_legend({str(k).lower(): str(v) for k, v in legend.items() if v})
+                except ValueError:
+                    log.warning("Farblegende nicht lesbar: %s", m.group(1))
+                text = self.LEGEND_RE.sub("", ev["text"]).strip()
+                if not text:
+                    return
+                ev = {**ev, "text": text}
         msg = {"type": "agent", **ev}
         if ev["kind"] in ("text", "tool", "error", "done"):
             self.log_lines.append(msg)
@@ -181,6 +199,23 @@ class Studio:
         await self.broadcast(msg)
         if ev["kind"] == "done":
             await self.schedule_export()
+
+    async def set_legend(self, legend: dict[str, str]) -> None:
+        self.legend = legend
+        try:
+            (self._turn_dir() / "farblegende.json").write_text(json.dumps(legend, ensure_ascii=False, indent=1))
+        except OSError as e:
+            log.warning("Farblegende nicht gespeichert: %s", e)
+        await self.broadcast({"type": "legend", "legend": legend})
+
+    def _load_legend(self) -> None:
+        self.legend = {}
+        if self.project_path:
+            f = self.project_path.with_suffix(".studio") / "farblegende.json"
+            try:
+                self.legend = json.loads(f.read_text())
+            except (FileNotFoundError, ValueError):
+                pass
 
     async def prompt(self, data: dict) -> None:
         text = (data.get("text") or "").strip()
@@ -203,8 +238,12 @@ class Studio:
         context = {
             "kamera": data.get("camera"),
             "markierungen": data.get("marks") or [],
-            "hinweis": ("Bild: Tablet-Ansicht mit den Stiftstrichen des Benutzers (rot). "
-                        "Markierungen: pro Strich die 3D-Treffer auf dem Modell (Welt-mm, Z oben)."),
+            "farben_in_dieser_runde": sorted({m.get("farbe") for m in data.get("marks") or [] if m.get("farbe")}),
+            "farblegende_bisher": self.legend,
+            "hinweis": ("Bild: Tablet-Ansicht mit den farbigen Stiftstrichen des Benutzers. "
+                        "Markierungen: pro Strich Farbe und 3D-Treffer auf dem Modell (Welt-mm, Z oben). "
+                        "Farbbedeutungen legt nur der Benutzer fest (Text dieser oder früherer Runden, "
+                        "farblegende_bisher)."),
         }
         (turn_dir / f"runde-{self.turn_no:03d}.json").write_text(json.dumps(
             {"zeit": datetime.now().isoformat(timespec="seconds"), "text": text, **context},
@@ -264,6 +303,7 @@ class Studio:
                 self._require_idle()
                 await self.sc.execute("file.new", {"name": data.get("name") or "Neues Bauteil"})
                 self.project_path = None
+                self.legend = {}
                 self.turn_checkpoints.clear()
                 if hasattr(self, "_session_dir"):
                     del self._session_dir
@@ -271,6 +311,7 @@ class Studio:
                 self.log_lines.clear()
                 await self.broadcast({"type": "reset"})
                 await self.broadcast(self.backend_info())
+                await self.broadcast({"type": "legend", "legend": self.legend})
             elif t == "save":
                 self._require_idle()
                 path = await self.save(data.get("name"))
@@ -340,6 +381,8 @@ class Studio:
         await self.sc.execute("doc.open", {"path": str(path)})
         # Dateien außerhalb des Studio-Ordners gelten als Original: gespeichert wird als Kopie.
         self.project_path = path if path.parent == self.projects_dir.resolve() else None
+        self._load_legend()
+        await self.broadcast({"type": "legend", "legend": self.legend})
         self.turn_checkpoints.clear()
         await self.agent.reset()
         self.log_lines.clear()
@@ -408,6 +451,7 @@ class Studio:
         self.clients.add(ws)
         await ws.send_json({"type": "hello", "busy": self.agent.busy, "log": self.log_lines})
         await ws.send_json(self.backend_info())
+        await ws.send_json({"type": "legend", "legend": self.legend})
         if self.revision is not None:
             await self.schedule_export()
         try:
