@@ -7,7 +7,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const $ = (s) => document.querySelector(s);
 const viewport = $('#viewport');
 const overlay = $('#overlay');
-const octx = overlay.getContext('2d');
+// CPU-Leinwand: Mit GPU-Beschleunigung tauchte in Chrome gelegentlich ein schon gelöschter Strich wieder auf.
+const octx = overlay.getContext('2d', { willReadFrequently: true });
 
 // ---------- 3D-Ansicht ----------
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
@@ -192,9 +193,29 @@ function reanchorStrokes() {
   drawStrokes();
 }
 
-function drawStrokes() {
+const drawLog = [];   // Diagnose: letzte Zeichenvorgänge (studioDebug.drawLog)
+function clearOverlay(hard) {
+  // Unabhängig von der aktuellen Transformation löschen; bei leerer Ebene die Fläche ganz zurücksetzen
+  // (im Volltest blieben sonst gelegentlich Pixel eines alten Strichs stehen, obwohl gelöscht wurde).
+  if (hard) {
+    overlay.width = overlay.width;
+    const dpr = Math.min(window.devicePixelRatio, 2);
+    octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return;
+  }
+  octx.save();
+  octx.setTransform(1, 0, 0, 1, 0, 0);
+  octx.globalAlpha = 1;
+  octx.globalCompositeOperation = 'source-over';
   octx.clearRect(0, 0, overlay.width, overlay.height);
-  for (const s of [...strokes, current].filter((s) => s && !s.erase)) {
+  octx.restore();
+}
+function drawStrokes(why = '') {
+  const list = [...strokes, current].filter((s) => s && !s.erase);
+  clearOverlay(list.length === 0);
+  drawLog.push({ t: Math.round(performance.now()), why, n: strokes.length, cur: !!current, drawn: list.length });
+  if (drawLog.length > 40) drawLog.shift();
+  for (const s of list) {
     const pts = s.anchors && s.cam !== lastCamKeyAtDraw() ? s.anchors.map((a) => project(a.p)) : s.pts;
     if (pts.length < 1) continue;
     const hex = (s.color || COLORS[0]).hex;
@@ -387,7 +408,9 @@ function handle(m) {
   switch (m.type) {
     case 'hello':
       $('#log').innerHTML = '';
+      replaying = true;
       for (const l of m.log) handle(l);
+      replaying = false;
       setBusy(m.busy);
       break;
     case 'model':
@@ -398,7 +421,8 @@ function handle(m) {
     case 'agent':
       if (m.kind === 'user' && pendingLocalUser) { pendingLocalUser = false; break; }
       agentMsg(m); break;
-    case 'busy': setBusy(m.busy); if (!m.busy) drawStrokes(); break;
+    case 'busy': setBusy(m.busy); if (!m.busy) { drawStrokes(); maybeAutoListen(); } break;
+    case 'caps': caps = { stt: m.stt, tts: m.tts }; updateVoiceUi(); break;
     case 'status': if (m.solidcraft === false) toast('SolidCraft nicht erreichbar: ' + m.text); break;
     case 'saved': toast('Gespeichert: ' + m.path); break;
     case 'error': toast(m.text); break;
@@ -425,6 +449,7 @@ function agentMsg(m) {
     if (m.image) { const img = new Image(); img.src = m.image; div.append(img); }
     agentBlock = null;
   } else if (m.kind === 'text') {
+    if (!replaying) say(m.text);
     div.className = 'msg agent'; div.textContent = m.text; agentBlock = null;
   } else if (m.kind === 'tool') {
     if (!agentBlock) { agentBlock = document.createElement('div'); agentBlock.className = 'tools'; log.append(agentBlock); }
@@ -462,27 +487,139 @@ $('#composer').addEventListener('submit', (e) => {
   agentMsg({ kind: 'user', text, marks: strokes.length, image: strokes.length ? image : null });
   pendingLocalUser = true;
   $('#text').value = '';
-  strokes = []; current = null; controls.enabled = true; drawStrokes();
+  strokes = []; current = null; controls.enabled = true; drawStrokes('senden');
 });
-// ---------- Sprache: antippen, sprechen, antippen; der Text landet im Eingabefeld ----------
+// ---------- Sprache in beide Richtungen ----------
+// Eingabe: 🎤 antippen, sprechen, antippen → Text ins Eingabefeld (Whisper auf dem PC).
+// Ausgabe: Antworten der KI werden vorgelesen (Piper auf dem PC), abschaltbar mit 🔊.
+// Rückfrage (Antwort endet mit „?“) und 👂 an: nach dem Vorlesen hört das Mikrofon automatisch zu und
+// stoppt nach einer Sprechpause; der erkannte Text landet im Eingabefeld, Senden bleibt beim Benutzer.
+// Echo-Schutz: Aufnahme und Wiedergabe laufen nie gleichzeitig (Antippen von 🎤 beendet das Vorlesen),
+// Echounterdrückung des Browsers ist an, und der PC verwirft Aufnahmen, die dem Vorgelesenen gleichen.
+const store = {
+  get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v === '1'; } catch { return d; } },
+  set: (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch { /* privat */ } },
+};
+let caps = { stt: true, tts: false };
+let speakOn = store.get('studio.vorlesen', true);
+let listenOn = store.get('studio.zuhoeren', true);
+let audioCtx = null;
+const speech = { queue: [], playing: false, source: null, spoken: 0, lastQuestion: false, pendingListen: false, lastHeard: '', echo: 0 };
+let replaying = false;
+
+function unlockAudio() {
+  // Browser erlauben Ton erst nach einer Bedienung: beim ersten Antippen den Audiokontext öffnen.
+  if (!audioCtx) { try { audioCtx = new AudioContext(); } catch { return; } }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+addEventListener('pointerdown', unlockAudio, true);
+addEventListener('keydown', unlockAudio, true);
+
+function say(text) {
+  if (!speakOn || !caps.tts || !text.trim()) return;
+  speech.queue.push(text);
+  pumpSpeech();
+}
+async function pumpSpeech() {
+  if (speech.playing || recorder || !speech.queue.length) return;
+  const text = speech.queue.shift();
+  speech.playing = true;
+  updateVoiceUi();
+  try {
+    unlockAudio();
+    const r = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
+    const buf = await audioCtx.decodeAudioData(await r.arrayBuffer());
+    if (!speech.playing) return;   // inzwischen abgebrochen
+    await new Promise((resolve) => {
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf; src.connect(audioCtx.destination);
+      src.onended = resolve;
+      speech.source = src;
+      src.start();
+    });
+    speech.spoken++;
+    speech.lastQuestion = /\?\s*$/.test(text.trim());
+  } catch (e) { toast('Vorlesen: ' + e.message); speech.lastQuestion = false; }
+  speech.source = null;
+  speech.playing = false;
+  updateVoiceUi();
+  if (speech.queue.length) { pumpSpeech(); return; }
+  if (speech.lastQuestion && listenOn && caps.stt) {
+    speech.pendingListen = true;
+    maybeAutoListen();
+  }
+}
+function stopSpeaking() {
+  speech.queue = [];
+  speech.pendingListen = false;
+  if (speech.source) { try { speech.source.stop(); } catch { /* schon zu Ende */ } }
+  speech.playing = false;
+  updateVoiceUi();
+}
+function maybeAutoListen() {
+  // Erst zuhören, wenn die KI fertig ist und nichts mehr vorgelesen wird (kein Echo).
+  if (!speech.pendingListen || busy || speech.playing || recorder) return;
+  speech.pendingListen = false;
+  setTimeout(() => { if (!speech.playing && !recorder) startRecording({ auto: true }); }, 400);
+}
+function updateVoiceUi() {
+  $('#say').hidden = !caps.tts; $('#listen').hidden = !caps.tts || !caps.stt; $('#mic').hidden = !caps.stt;
+  $('#say').textContent = speakOn ? '🔊' : '🔇';
+  $('#say').classList.toggle('on', speakOn);
+  $('#say').title = speakOn ? 'Vorlesen ist an (antippen: aus)' : 'Vorlesen ist aus (antippen: an)';
+  $('#listen').classList.toggle('on', listenOn);
+  $('#listen').title = listenOn ? 'Nach einer Rückfrage automatisch zuhören: an' : 'Nach einer Rückfrage automatisch zuhören: aus';
+  $('#mic').classList.toggle('speaking', speech.playing);
+}
+$('#say').onclick = () => { speakOn = !speakOn; store.set('studio.vorlesen', speakOn); if (!speakOn) stopSpeaking(); updateVoiceUi(); };
+$('#listen').onclick = () => { listenOn = !listenOn; store.set('studio.zuhoeren', listenOn); updateVoiceUi(); };
+
 let recorder = null;
-async function startRecording() {
+function watchSilence(stream, done) {
+  // Einfache Sprechpausen-Erkennung über die Lautstärke (RMS) des Mikrofons.
+  unlockAudio();
+  const src = audioCtx.createMediaStreamSource(stream);
+  const an = audioCtx.createAnalyser(); an.fftSize = 2048; src.connect(an);
+  const buf = new Float32Array(an.fftSize);
+  const t0 = performance.now(); let spoke = false, quietSince = t0;
+  const iv = setInterval(() => {
+    an.getFloatTimeDomainData(buf);
+    let sum = 0; for (const v of buf) sum += v * v;
+    const rms = Math.sqrt(sum / buf.length), now = performance.now();
+    if (rms > 0.015) { spoke = true; quietSince = now; }
+    if ((spoke && now - quietSince > 1200) || (!spoke && now - t0 > 7000) || now - t0 > 30000) {
+      clearInterval(iv); src.disconnect(); done(spoke);
+    }
+  }, 100);
+  return () => { clearInterval(iv); src.disconnect(); };
+}
+async function startRecording({ auto = false } = {}) {
+  stopSpeaking();   // nie gleichzeitig vorlesen und aufnehmen
   let stream;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
   } catch (e) { toast('Kein Mikrofon-Zugriff: ' + e.message); return; }
   const type = ['audio/ogg;codecs=opus', 'audio/webm;codecs=opus'].find((t) => MediaRecorder.isTypeSupported(t));
-  recorder = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+  const rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+  recorder = rec;
+  rec.auto = auto;
+  rec.discard = false;
   const chunks = [];
-  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-  recorder.onstop = async () => {
+  rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  rec.onstop = async () => {
+    rec.stopWatch?.();
     stream.getTracks().forEach((t) => t.stop());
-    $('#mic').classList.remove('rec'); $('#mic').classList.add('wait');
+    $('#mic').classList.remove('rec');
+    if (rec.discard) { recorder = null; toast('Keine Antwort gehört.'); pumpSpeech(); return; }
+    $('#mic').classList.add('wait');
     try {
-      const r = await fetch('/stt', { method: 'POST', body: new Blob(chunks, { type: recorder.mimeType }) });
+      const r = await fetch('/stt', { method: 'POST', body: new Blob(chunks, { type: rec.mimeType }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || r.statusText);
-      if (j.text) {
+      speech.lastHeard = j.text || '';
+      if (j.echo) { speech.echo++; toast('Eigene Sprachausgabe im Mikrofon erkannt und verworfen.'); }
+      else if (j.text) {
         const t = $('#text');
         t.value = (t.value.trim() ? t.value.trim() + ' ' : '') + j.text;
         t.focus(); t.setSelectionRange(t.value.length, t.value.length);
@@ -490,9 +627,18 @@ async function startRecording() {
     } catch (e) { toast('Spracherkennung: ' + e.message); }
     $('#mic').classList.remove('wait');
     recorder = null;
+    pumpSpeech();
   };
-  recorder.start();
+  rec.start();
   $('#mic').classList.add('rec');
+  if (auto) {
+    toast('Ich höre zu …');
+    rec.stopWatch = watchSilence(stream, (spoke) => {
+      if (rec.state !== 'recording') return;
+      rec.discard = !spoke;
+      rec.stop();
+    });
+  }
 }
 $('#mic').addEventListener('click', () => {
   if ($('#mic').classList.contains('wait')) return;
@@ -577,6 +723,11 @@ window.studioDebug = { worldToScreen: (x, y, z) => project(new THREE.Vector3(x, 
   marks: () => marksPayload(),
   camera: () => camera.position.toArray().map((v) => +v.toFixed(3)),
   input: () => ({ penSeen, ignoredTouches: ignoredTouches.size, controls: controls.enabled }),
+  speech: () => ({ on: speakOn, listen: listenOn, caps, playing: speech.playing, queue: speech.queue.length,
+    spoken: speech.spoken, recording: !!recorder, auto: !!recorder?.auto, lastHeard: speech.lastHeard, echo: speech.echo,
+    text: $('#text').value }),
+  say: (text) => say(text),
+  drawLog: () => drawLog.slice(-12),
   overlayPixels: () => {
     const d = octx.getImageData(0, 0, overlay.width, overlay.height).data;
     let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++;
@@ -596,6 +747,7 @@ window.studioDebug = { worldToScreen: (x, y, z) => project(new THREE.Vector3(x, 
 };
 
 if (location.search.includes('t=')) history.replaceState(null, '', '/');
+updateVoiceUi();
 fitView(VIEW_ISO.clone());
 resize();
 animate();

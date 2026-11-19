@@ -15,11 +15,12 @@ def main() -> None:
     ap.add_argument("--model", default=None, help="Claude-Modell (Standard: wie Claude Code)")
     ap.add_argument("--local-model", default="qwen3:8b", help="Ollama-Modell für den Modus „Lokal“")
     ap.add_argument("--no-speech", action="store_true", help="Spracheingabe (Whisper) abschalten")
+    ap.add_argument("--no-voice", action="store_true", help="Sprachausgabe (Piper) abschalten")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     logging.getLogger("aiohttp.access").setLevel(logging.WARNING)
     try:
-        asyncio.run(Studio(a.control_port, a.projects, a.host, a.port, a.model, not a.no_speech, a.local_model).run())
+        asyncio.run(Studio(a.control_port, a.projects, a.host, a.port, a.model, not a.no_speech, a.local_model, not a.no_voice).run())
     except KeyboardInterrupt:
         pass
 

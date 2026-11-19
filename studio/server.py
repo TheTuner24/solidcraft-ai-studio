@@ -17,6 +17,7 @@ from .agent import Agent
 from .local_agent import LocalAgent
 from .solidcraft import ControlClient, ControlError
 from .stt import SpeechToText
+from .tts import TextToSpeech
 
 log = logging.getLogger("studio")
 
@@ -31,7 +32,8 @@ def safe_name(name: str) -> str:
 
 class Studio:
     def __init__(self, control_port: int, projects_dir: Path, host: str, port: int,
-                 model: str | None, speech: bool = True, local_model: str = "qwen3:8b"):
+                 model: str | None, speech: bool = True, local_model: str = "qwen3:8b",
+                 voice_out: bool = True):
         self.control_port = control_port
         self.projects_dir = projects_dir
         self.cache_dir = projects_dir / ".cache"
@@ -46,6 +48,7 @@ class Studio:
         self.backend = self._load_backend()
         self.clients: set[web.WebSocketResponse] = set()
         self.stt = SpeechToText() if speech else None
+        self.tts = TextToSpeech() if voice_out else None
         self.revision: int | None = None
         self.model_rev = 0
         self._export_lock = asyncio.Lock()
@@ -424,6 +427,17 @@ class Studio:
         # seitenübergreifend und schickt ein Strict-Cookie im Folgeaufruf nicht mit.
         return web.FileResponse(WEB_DIR / "index.html", headers={"Cache-Control": "no-store"})
 
+    async def _load_tts(self) -> None:
+        try:
+            await self.tts.ensure_loaded()
+        except Exception as e:
+            log.warning("Sprachausgabe nicht verfügbar: %s", e)
+            self.tts = None
+            await self.broadcast(self.capabilities())
+
+    def capabilities(self) -> dict:
+        return {"type": "caps", "stt": self.stt is not None, "tts": self.tts is not None}
+
     async def speech(self, request: web.Request) -> web.Response:
         if not self.stt:
             raise web.HTTPNotFound(text="Spracheingabe ist abgeschaltet.")
@@ -435,8 +449,25 @@ class Studio:
         except Exception as e:
             log.exception("Spracherkennung fehlgeschlagen")
             return web.json_response({"error": f"Spracherkennung fehlgeschlagen: {e}"}, status=500)
+        if self.tts and self.tts.is_echo(text):
+            log.info("Eigene Sprachausgabe im Mikrofon erkannt, verworfen: %s", text)
+            return web.json_response({"text": "", "echo": True, "seconds": round(secs, 2)})
         log.info("Sprache erkannt in %.2f s: %s", secs, text)
         return web.json_response({"text": text, "seconds": round(secs, 2)})
+
+    async def speak(self, request: web.Request) -> web.Response:
+        if not self.tts:
+            raise web.HTTPNotFound(text="Sprachausgabe ist abgeschaltet.")
+        data = await request.json()
+        text = str(data.get("text") or "")
+        if not text.strip():
+            raise web.HTTPBadRequest(text="Kein Text.")
+        try:
+            wav = await self.tts.synthesize(text)
+        except Exception as e:
+            log.exception("Sprachausgabe fehlgeschlagen")
+            return web.json_response({"error": f"Sprachausgabe fehlgeschlagen: {e}"}, status=500)
+        return web.Response(body=wav, content_type="audio/wav")
 
     async def model(self, request: web.Request) -> web.StreamResponse:
         path = self.cache_dir / "model.glb"
@@ -452,6 +483,7 @@ class Studio:
         await ws.send_json({"type": "hello", "busy": self.agent.busy, "log": self.log_lines})
         await ws.send_json(self.backend_info())
         await ws.send_json({"type": "legend", "legend": self.legend})
+        await ws.send_json(self.capabilities())
         if self.revision is not None:
             await self.schedule_export()
         try:
@@ -478,6 +510,7 @@ class Studio:
         app.router.add_get("/ws", self.websocket)
         app.router.add_get("/model.glb", self.model)
         app.router.add_post("/stt", self.speech)
+        app.router.add_post("/tts", self.speak)
         app.router.add_static("/", WEB_DIR, show_index=False)
         app.on_response_prepare.append(self._no_cache)
         return app
@@ -497,5 +530,7 @@ class Studio:
         asyncio.create_task(self.start_watch())
         if self.stt:
             asyncio.create_task(self.stt.ensure_loaded())   # erste Aufnahme ohne Wartezeit
+        if self.tts:
+            asyncio.create_task(self._load_tts())
         while True:
             await asyncio.sleep(3600)

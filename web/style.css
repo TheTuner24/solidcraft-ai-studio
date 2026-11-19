@@ -61,6 +61,11 @@ main { flex: 1; display: flex; min-height: 0; }
   background: var(--panel2); color: var(--text); flex: none; }
 #mic.rec { background: #b3261e; border-color: #ff6b6b; animation: pulse 1.2s ease-in-out infinite; }
 #mic.wait { opacity: .6; }
+#mic.speaking { border-color: var(--accent); }
+.voice { width: 44px; height: 44px; font-size: 19px; border-radius: 22px; border: 1px solid var(--line);
+  background: var(--panel2); color: var(--text); flex: none; opacity: .55; }
+.voice.on { opacity: 1; border-color: var(--accent); }
+.voice[hidden], #mic[hidden] { display: none; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 8px #ff4d4d33; } }
 #send { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 12px 22px; font-size: 16px; }
 #send:disabled { opacity: .5; }

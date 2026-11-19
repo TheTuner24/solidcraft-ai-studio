@@ -23,13 +23,13 @@ updates can be taken without merging.
 | Sketch + text → parametric part in SolidCraft | ✅ tested |
 | Circle an edge + describe a change → exactly that edge is changed | ✅ tested |
 | Rotate/zoom the model on the tablet, view refreshes after every change | ✅ tested |
-| Voice input (local Whisper, recognised text goes into the input box) | ✅ tested |
+| Voice input (local Whisper, recognised text goes into the input box) | ✅ tested (also on the tablet) |
+| Voice output: answers read aloud (local Piper), can be switched off, answer questions by voice, echo protection | ✅ tested automatically (tablet check 🟡) |
 | Undo/redo, "revert AI turn", saving without overwriting originals | ✅ / 🟡 partly tested |
 | S Pen: pressure → line width, palm rejection, pen button erases, pen draws / finger navigates | ✅ tested automatically (tablet check 🟡) |
 | Local AI via Ollama (toggle) | ⛔ experimental, not usable with 8 GB VRAM |
 | Line colours: colour per stroke, you define the meaning by voice/text ("green is a Ø 4 hole") | ✅ tested (tablet use 🟡) |
 | Stroke vectorisation, native dimensioned SolidCraft sketches | 📋 planned |
-| Voice output (answers read aloud) | 📋 planned |
 | Wireless over Wi-Fi (no USB) | 📋 planned |
 
 ✅ tested · 🟡 implemented, not fully tested · 📋 planned · ⛔ on hold
@@ -56,8 +56,15 @@ Tablet (Firefox)                      PC
 - **Agent:** A long-running `claude -p` process (stream-json). It has **no** shell and no file access,
   only the SolidCraft MCP server. Saving, opening and exporting are blocked for it, and file paths are
   limited to the studio folder. The system prompt is in `studio/agent.py`.
-- **Voice:** The browser microphone records (MediaRecorder, Opus). The PC transcribes locally with
-  faster-whisper (`large-v3-turbo`, German). No audio goes to the internet.
+- **Voice:** Everything runs locally on the PC, no audio goes to the internet.
+  - Input: the browser microphone records (MediaRecorder, Opus), the PC transcribes with faster-whisper
+    (`large-v3-turbo`, German).
+  - Output: the PC reads answers aloud with [Piper](https://github.com/OHF-Voice/piper1-gpl) (voice
+    `de_DE-thorsten-medium`, downloaded on first start to `~/.local/share/solidcraft-ai-studio/voices`).
+  - Questions: after a question from the AI, the microphone listens automatically (👂) and stops at a
+    pause in speech.
+  - Echo protection: reading aloud and recording never overlap. Recordings that match what was just read
+    aloud are discarded by the PC.
 - **Pen and fingers:**
   - Only the pen (and the left mouse button) draws. Fingers rotate, zoom and pan.
   - A palm is ignored: while the pen writes or hovers, for 600 ms after that, and when the contact is
@@ -85,7 +92,8 @@ Requirements:
 - Linux, SolidCraft ≥ 0.44 (`solidcraft`, `solidcraft-cli` on `PATH`)
 - [uv](https://docs.astral.sh/uv/), [Claude Code](https://claude.com/claude-code) (logged in)
 - For the tablet: `adb`, USB debugging, Firefox
-- For voice: ideally an NVIDIA GPU. The Whisper model (~1.6 GB) is downloaded on first start.
+- For voice: ideally an NVIDIA GPU. The Whisper model (~1.6 GB) and the Piper voice (~63 MB) are
+  downloaded on first start.
 
 ```bash
 git clone https://github.com/TheTuner24/solidcraft-ai-studio.git
@@ -108,8 +116,9 @@ Options:
 |---|---|
 | `./start.sh --model sonnet` | different Claude model |
 | `./start.sh --no-speech` | without speech recognition |
+| `./start.sh --no-voice` | without voice output |
 | `./start.sh --local-model NAME` | Ollama model for "Lokal" |
-| `CONTROL_PORT`, `STUDIO_PORT`, `STUDIO_WHISPER_MODEL` | ports and Whisper model |
+| `CONTROL_PORT`, `STUDIO_PORT`, `STUDIO_WHISPER_MODEL`, `STUDIO_PIPER_VOICE` | ports, Whisper model, Piper voice |
 
 **Desktop menu entry** (optional):
 
@@ -128,7 +137,9 @@ sed "s#@DIR@#$PWD#" packaging/solidcraft-ai-studio.desktop.in > ~/.local/share/a
 | one finger | rotate the model |
 | two fingers | zoom and pan |
 | mouse on the PC | left draws, right rotates, middle pans, wheel zooms |
-| 🎤 tap – speak – tap | recognised text goes into the input box, check it, then send |
+| 🎤 tap – speak – tap | recognised text goes into the input box, check it, then send. While reading aloud: stops the voice and starts recording. |
+| 🔊 / 🔇 | read answers aloud on/off |
+| 👂 | listen automatically after a question on/off |
 | Ctrl+Enter | send |
 | KI-Runde | revert the last AI turn completely |
 | An PC | SolidCraft takes over the tablet's camera |
@@ -153,3 +164,8 @@ Rules for development and documentation, also for AI assistants: [CLAUDE.md](CLA
 
 MIT, see [LICENSE](LICENSE). Bundles [three.js](https://threejs.org) 0.170.0 in `web/vendor/` (MIT,
 see `web/vendor/THREE-LICENSE`). SolidCraft is not included and is installed separately.
+
+Dependencies are downloaded at install time, not bundled. They include faster-whisper (MIT) and, for
+voice output, [piper-tts](https://github.com/OHF-Voice/piper1-gpl) (**GPL-3.0**) with the voice
+`de_DE-thorsten-medium` (Thorsten dataset, CC0). To run without the GPL component, start with
+`--no-voice` and remove `piper-tts` from `pyproject.toml`.

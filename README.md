@@ -22,13 +22,13 @@ Schnittstellen von SolidCraft: den Steuerkanal (`solidcraft --control PORT`) und
 | Skizze + Text → parametrisches Bauteil in SolidCraft | ✅ getestet |
 | Kante einkreisen + Änderung beschreiben → genau diese Kante wird geändert | ✅ getestet |
 | Modell auf dem Tablet drehen/zoomen, Ansicht aktualisiert sich nach jeder Änderung | ✅ getestet |
-| Spracheingabe (lokal mit Whisper, Text landet im Eingabefeld) | ✅ getestet |
+| Spracheingabe (lokal mit Whisper, Text landet im Eingabefeld) | ✅ getestet (auch auf dem Tablet) |
+| Sprachausgabe: Antworten vorlesen (lokal mit Piper), abschaltbar, Rückfragen per Sprache beantworten, Echo-Schutz | ✅ automatisch getestet (Tablet-Prüfung 🟡) |
 | Undo/Redo, „KI-Runde zurück“, Speichern ohne Originale zu überschreiben | ✅ / 🟡 teilweise getestet |
 | S Pen: Druck → Strichbreite, Handballen-Erkennung, Stifttaste radiert, Stift zeichnet / Finger navigiert | ✅ automatisch getestet (Tablet-Prüfung 🟡) |
 | KI lokal über Ollama (Umschalter) | ⛔ experimentell, mit 8 GB Grafikspeicher nicht brauchbar |
 | Linienfarben: Farbe je Strich, Bedeutung legst du per Sprache/Text fest („grün ist eine Bohrung Ø 4“) | ✅ getestet (Tablet-Bedienung 🟡) |
 | Vektorisierung der Striche, native bemaßte SolidCraft-Skizzen | 📋 geplant |
-| Sprachausgabe (Antworten vorlesen) | 📋 geplant |
 | Drahtlos über WLAN (ohne USB) | 📋 geplant |
 
 ✅ getestet · 🟡 implementiert, nicht vollständig getestet · 📋 geplant · ⛔ zurückgestellt
@@ -55,8 +55,14 @@ Tablet (Firefox)                      PC
 - **Agent:** Ein langlebiger `claude -p`-Prozess (stream-json). Er hat **keine** Shell und keinen
   Dateizugriff, nur den SolidCraft-MCP-Server. Speichern, Öffnen und Export sind ihm gesperrt,
   Dateipfade auf den Studio-Ordner begrenzt. Die Systemanweisung steht in `studio/agent.py`.
-- **Sprache:** Das Browser-Mikrofon nimmt auf (MediaRecorder, Opus). Der PC erkennt den Text lokal mit
-  faster-whisper (`large-v3-turbo`, Deutsch). Es geht kein Audio ins Internet.
+- **Sprache:** Alles läuft lokal auf dem PC, es geht kein Audio ins Internet.
+  - Eingabe: Das Browser-Mikrofon nimmt auf (MediaRecorder, Opus), der PC erkennt den Text mit
+    faster-whisper (`large-v3-turbo`, Deutsch).
+  - Ausgabe: Der PC liest die Antworten mit [Piper](https://github.com/OHF-Voice/piper1-gpl) vor (Stimme
+    `de_DE-thorsten-medium`, wird beim ersten Start nach `~/.local/share/solidcraft-ai-studio/voices` geladen).
+  - Rückfragen: Nach einer Rückfrage hört das Mikrofon automatisch zu (👂) und stoppt bei einer Sprechpause.
+  - Echo-Schutz: Vorlesen und Aufnahme laufen nie gleichzeitig. Aufnahmen, die dem gerade Vorgelesenen
+    gleichen, verwirft der PC.
 - **Stift und Finger:**
   - Nur der Stift (und die linke Maustaste) zeichnet. Finger drehen, zoomen und verschieben.
   - Ein Handballen wird ignoriert: während der Stift schreibt oder schwebt, bis 600 ms danach und bei
@@ -84,7 +90,8 @@ Voraussetzungen:
 - Linux, SolidCraft ≥ 0.44 (`solidcraft`, `solidcraft-cli` im `PATH`)
 - [uv](https://docs.astral.sh/uv/), [Claude Code](https://claude.com/claude-code) (angemeldet)
 - Für das Tablet: `adb`, USB-Debugging, Firefox
-- Für Sprache: am besten eine NVIDIA-GPU. Das Whisper-Modell (~1,6 GB) wird beim ersten Start geladen.
+- Für Sprache: am besten eine NVIDIA-GPU. Das Whisper-Modell (~1,6 GB) und die Piper-Stimme (~63 MB)
+  werden beim ersten Start geladen.
 
 ```bash
 git clone https://github.com/TheTuner24/solidcraft-ai-studio.git
@@ -107,8 +114,9 @@ Optionen:
 |---|---|
 | `./start.sh --model sonnet` | anderes Claude-Modell |
 | `./start.sh --no-speech` | ohne Spracherkennung |
+| `./start.sh --no-voice` | ohne Sprachausgabe |
 | `./start.sh --local-model NAME` | Ollama-Modell für „Lokal“ |
-| `CONTROL_PORT`, `STUDIO_PORT`, `STUDIO_WHISPER_MODEL` | Ports und Whisper-Modell |
+| `CONTROL_PORT`, `STUDIO_PORT`, `STUDIO_WHISPER_MODEL`, `STUDIO_PIPER_VOICE` | Ports, Whisper-Modell, Piper-Stimme |
 
 **Startmenü-Eintrag** (optional):
 
@@ -131,7 +139,9 @@ SolidCraft vom Skript gestartet, endet das Studio mit SolidCraft.
 | ein Finger | Modell drehen |
 | zwei Finger | zoomen und verschieben |
 | Maus am PC | links zeichnen, rechts drehen, Mitte verschieben, Rad zoomen |
-| 🎤 antippen – sprechen – antippen | erkannter Text kommt ins Eingabefeld, prüfen, dann senden |
+| 🎤 antippen – sprechen – antippen | erkannter Text kommt ins Eingabefeld, prüfen, dann senden. Während des Vorlesens: Vorlesen stoppt, Aufnahme beginnt. |
+| 🔊 / 🔇 | Vorlesen an/aus |
+| 👂 | nach einer Rückfrage automatisch zuhören an/aus |
 | Strg+Enter | senden |
 | KI-Runde | letzte KI-Änderung komplett zurücknehmen |
 | An PC | SolidCraft übernimmt die Kamera des Tablets |
@@ -156,3 +166,8 @@ Den aktuellen Stand und die nächsten Schritte beschreibt [STAND.md](STAND.md).
 MIT, siehe [LICENSE](LICENSE). Mitgeliefert ist [three.js](https://threejs.org) 0.170.0 in
 `web/vendor/` (MIT, siehe `web/vendor/THREE-LICENSE`). SolidCraft ist nicht enthalten und wird
 separat installiert.
+
+Abhängigkeiten werden bei der Installation geladen, nicht mitgeliefert. Darunter sind
+faster-whisper (MIT) und für die Sprachausgabe [piper-tts](https://github.com/OHF-Voice/piper1-gpl)
+(**GPL-3.0**) mit der Stimme `de_DE-thorsten-medium` (Thorsten-Datensatz, CC0). Wer das Studio ohne
+GPL-Komponente nutzen will, startet mit `--no-voice` und entfernt `piper-tts` aus `pyproject.toml`.

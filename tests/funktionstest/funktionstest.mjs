@@ -18,7 +18,8 @@ const MODE = process.argv.includes('--full') ? 'full' : 'smoke';
 const CACHE = path.join(os.homedir(), 'CAD/ai-studio/.cache');
 const URL = process.env.STUDIO_URL || fs.readFileSync(path.join(CACHE, 'studio-url.txt'), 'utf8').trim();
 const CONTROL_PORT = Number(process.env.CONTROL_PORT || 7979);
-const OUT = path.resolve('ergebnis');
+const HERE = path.dirname(new URL(import.meta.url).pathname);
+const OUT = path.join(HERE, 'ergebnis');
 fs.mkdirSync(OUT, { recursive: true });
 const CHROME = process.env.CHROME || ['/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser',
   '/opt/google/chrome/chrome'].find((p) => fs.existsSync(p));
@@ -47,8 +48,10 @@ async function volume() {
 }
 
 const browser = await chromium.launch({ executablePath: CHROME, headless: !process.env.SICHTBAR,
-  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const context = await browser.newContext({ viewport: { width: 1400, height: 875 }, hasTouch: true });
+  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required',
+    '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream',
+    `--use-file-for-fake-audio-capture=${path.join(HERE, 'testdaten/durchmesser.wav')}`] });
+const context = await browser.newContext({ viewport: { width: 1400, height: 875 }, hasTouch: true, permissions: ['microphone'] });
 const page = await context.newPage();
 const cdp = await context.newCDPSession(page);
 // Echte (vertrauenswürdige) Stift- und Fingerereignisse über das DevTools-Protokoll:
@@ -96,6 +99,22 @@ const overlayClear = async (t) => {
   const px = await page.evaluate(() => window.studioDebug.overlayPixels()), st = await state();
   ok(px === 0 && st.strokes === 0 && !st.current, `${t}: Striche nach dem Senden entfernt` +
     (px || st.strokes || st.current ? ` (Pixel ${px}, Striche ${st.strokes}, offener Strich ${st.current})` : ''));
+  if (px || st.strokes || st.current) console.log('     Zeichenprotokoll: ' + JSON.stringify(await page.evaluate(() => window.studioDebug.drawLog())));
+  if (px) console.log('     Diagnose: ' + JSON.stringify(await page.evaluate(() => {
+    const o = document.querySelector('#overlay'), ctx = o.getContext('2d');
+    const d = ctx.getImageData(0, 0, o.width, o.height).data;
+    let minX = 1e9, minY = 1e9, maxX = -1, maxY = -1, col = null;
+    for (let i = 3; i < d.length; i += 4) if (d[i]) {
+      const k = (i - 3) / 4, x = k % o.width, y = Math.floor(k / o.width);
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+      col ??= [d[i - 3], d[i - 2], d[i - 1], d[i]];
+    }
+    const before = window.studioDebug.overlayPixels();
+    o.width = o.width;
+    const after = window.studioDebug.overlayPixels();
+    return { size: [o.width, o.height], box: [minX, minY, maxX, maxY], col, before, afterReset: after,
+             overlays: document.querySelectorAll('canvas').length };
+  })));
 };
 const lastAgentText = () => page.$$eval('#log .msg.agent, #log .msg.error', (e) => e.at(-1)?.textContent || '');
 
@@ -178,6 +197,54 @@ if (MODE === 'smoke') {
   const inp = await page.evaluate(() => window.studioDebug.input());
   ok(inp.controls && inp.ignoredTouches === 0, 'Navigation nach den Tests wieder frei');
   await page.click('#fit');
+
+  // Sprache in beide Richtungen (Mikrofon-Attrappe spielt testdaten/durchmesser.wav in Schleife)
+  const sp = () => page.evaluate(() => window.studioDebug.speech());
+  const caps = (await sp()).caps;
+  ok(caps.stt && caps.tts, `Spracheingabe und -ausgabe verfügbar (stt ${caps.stt}, tts ${caps.tts})`);
+  if (caps.tts) {
+    const q = 'Soll die neue Bohrung durchgehend sein?';
+    const tts = await page.evaluate(async (text) => {
+      const r = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+      const b = await r.arrayBuffer();
+      const head = String.fromCharCode(...new Uint8Array(b.slice(0, 4)));
+      const echo = await (await fetch('/stt', { method: 'POST', body: b })).json();
+      return { status: r.status, bytes: b.byteLength, head, echo };
+    }, q);
+    ok(tts.status === 200 && tts.head === 'RIFF' && tts.bytes > 40000, `Sprachausgabe liefert WAV (${tts.bytes} Byte)`);
+    ok(tts.echo.echo === true && !tts.echo.text, 'Vorgelesener Satz im Mikrofon wird als Echo erkannt und verworfen');
+    await page.click('#say');
+    ok((await sp()).on === false, '🔊 schaltet das Vorlesen aus');
+    await page.evaluate(() => window.studioDebug.say('Das sollte jetzt nicht vorgelesen werden.'));
+    await page.waitForTimeout(500);
+    ok(!(await sp()).playing && (await sp()).spoken === 0, 'Ausgeschaltet: nichts wird vorgelesen');
+    await page.click('#say');
+    // Rückfrage vorlesen → danach automatisch zuhören → Antwort ins Eingabefeld
+    await page.fill('#text', '');
+    await page.evaluate((text) => window.studioDebug.say(text), q);
+    await page.waitForFunction(() => window.studioDebug.speech().playing, null, { timeout: 15000 });
+    const during = await sp();
+    ok(during.playing && !during.recording, 'Während des Vorlesens ist das Mikrofon aus (kein Echo)');
+    await page.waitForFunction(() => window.studioDebug.speech().auto, null, { timeout: 20000 });
+    ok(!(await sp()).playing, 'Nach der Rückfrage hört das Mikrofon automatisch zu');
+    await page.waitForFunction(() => !window.studioDebug.speech().recording && window.studioDebug.speech().text, null, { timeout: 30000 });
+    const after = await sp();
+    ok(/durchmesser/i.test(after.text), `Gesprochene Antwort steht im Eingabefeld: "${after.text}"`);
+    ok(after.spoken >= 1, 'Rückfrage wurde vorgelesen');
+    // Dazwischenreden: 🎤 während des Vorlesens beendet die Ausgabe sofort und nimmt auf
+    await page.fill('#text', '');
+    await page.evaluate(() => window.studioDebug.say('Ich lese jetzt einen etwas längeren Satz vor, damit genug Zeit zum Unterbrechen bleibt, und noch ein bisschen weiter.'));
+    await page.waitForFunction(() => window.studioDebug.speech().playing, null, { timeout: 15000 });
+    await page.click('#mic');
+    await page.waitForTimeout(400);
+    const barge = await sp();
+    ok(!barge.playing && barge.recording, '🎤 während des Vorlesens: Ausgabe stoppt, Aufnahme startet');
+    await page.waitForTimeout(2500);
+    await page.click('#mic');
+    await page.waitForFunction(() => !window.studioDebug.speech().recording && !document.querySelector('#mic').classList.contains('wait'), null, { timeout: 30000 });
+    ok(/durchmesser/i.test((await sp()).text), 'Aufnahme nach dem Unterbrechen wird erkannt');
+    await page.fill('#text', '');
+  }
   await page.click('#clear');
   s = await state();
   ok(s.strokes === 0, '„Striche löschen“ entfernt alle Striche');
@@ -193,6 +260,9 @@ if (MODE === 'smoke') {
     '36 mm Abstand zueinander, mittig auf der langen Achse.');
   await page.click('#send'); await waitIdle();
   const v1 = await volume(), soll1 = 60 * 40 * 5 - 2 * Math.PI * 2.75 ** 2 * 5;
+  if ((await state()) && (await page.evaluate(() => window.studioDebug.speech().caps.tts)))
+    ok(await page.evaluate(() => { const s = window.studioDebug.speech(); return s.spoken >= 1 || s.playing || s.queue > 0; }),
+      'Antwort der KI wird vorgelesen');
   ok(Math.abs(v1 - soll1) / soll1 < 0.01, `Runde 1: Platte mit Bohrungen, Volumen ${v1.toFixed(0)} mm³ (Soll ${soll1.toFixed(0)})`);
   console.log('     KI: ' + (await lastAgentText()).slice(0, 200));
   await overlayClear('Runde 1');

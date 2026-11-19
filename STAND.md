@@ -20,12 +20,11 @@ Galaxy Tab S8+
 
 ## Kurzfassung
 
-- **Linienfarben (Schwerpunkt 1) und S-Pen-Bedienung (4) sind fertig und automatisch getestet**
-  (19.11.2026). Die Prüfung auf dem echten Tablet steht noch aus.
+- **Linienfarben (1), S-Pen-Bedienung (4) und Sprache in beide Richtungen (5) sind fertig und
+  automatisch getestet** (19.11.2026). Die Prüfung auf dem echten Tablet steht noch aus.
 - **Meilenstein 1 ist erreicht.** Skizze und Text auf dem Tablet ergeben ein parametrisches Bauteil
   in SolidCraft. Danach kommen Kante einkreisen, Änderung beschreiben, das bestehende Modell ändern
   und speichern. Der Ablauf ist automatisch getestet und auf dem Tablet benutzt.
-- **Spracheingabe** (Sprache → Text) läuft lokal mit Whisper. **Sprachausgabe** fehlt.
 - **Der Benutzer hat die Schwerpunkte erweitert:** Linienfarben mit Bedeutung, Vektor- statt
   Bildskizzen, native bemaßte Skizzen, drahtloser Betrieb. Diese sind überwiegend noch offen (siehe unten).
 
@@ -37,7 +36,7 @@ Galaxy Tab S8+
 | 2 | Bild- und vektorbasierte Skizzenverarbeitung | 🟡 teilweise ✅ | Der Agent bekommt **beides**: das Bild der Ansicht mit den Strichen und je Strich Punkte mit 3D-Ankern (Modelltreffer mit Normale, sonst Boden Z=0), geschlossen/offen und Innenabtastung. Die Kantenerkennung über die Punkte ist getestet (Runde 2). | Echte Vektorisierung: Strich in Linien, Bögen und Kreise zerlegen (Fitting), Ecken, Parallelität und Tangenten erkennen. Die 2D-Polylinien werden heute nur gekürzt übertragen. |
 | 3 | Handzeichnung → native, bemaßte CAD-Skizze | 📋 | Der Agent baut aus der Beschreibung parametrische Features (Parameter für Hauptmaße). Er erzeugt dabei nicht zwingend eine SolidCraft-Skizze aus den Strichen. | Erkannte Geometrie als `sketch.*`-Elemente mit Bedingungen und Bemaßungen (`sketch.dimension`, dof 0) anlegen. Maße aus Sprache oder Text zuordnen, handgeschriebene Maße erkennen. |
 | 4 | Zuverlässige S-Pen-Bedienung | ✅ automatisch (echte Stift-/Touch-Ereignisse über DevTools), Tablet 🟡 | **Druck:** Strichbreite 1–7 px (Wurzelkurve), Druck je Punkt gespeichert. **Stift ↔ Finger:** Nur Stift und linke Maustaste zeichnen, Finger drehen, zoomen und verschieben. **Handballen:** ignoriert während Stiftkontakt, Hover und 600 ms danach, bei Kontaktfläche ≥ 40 px, und bis zum Loslassen. Setzt der Stift auf, während ein Finger liegt, ist die Navigation bis Strichende gesperrt. **Radieren:** Stifttaste (`buttons & 2`), Radiererende (`button 5`/`buttons & 32`), Werkzeug „Radierer“. **Strich-Undo** „↩ Strich“. Behoben: Radieren durch Ziehen ließ die Seite abstürzen. | Auf dem Tablet prüfen (B1–B5): Druckkurve, Schwelle 40 px gegen echte Handballen, S-Pen-Taste in Firefox (das Radiererende hat der S Pen nicht) |
-| 5 | Bidirektionale Sprachkommunikation | 🟡 Eingabe ✅, Ausgabe 📋 | Mikrofon-Knopf → Whisper `large-v3-turbo` lokal auf der GPU → Text ins Eingabefeld → selbst senden. Getestet mit Aufnahmen (4/4 Wörter, ~0,3 s), im Testbrowser mit Mikrofon-Attrappe, vom Benutzer auf dem Tablet. | Antworten vorlesen (lokal, z. B. Piper), Wechselgespräch (Rückfrage → Antwort per Sprache), optional automatisch senden |
+| 5 | Bidirektionale Sprachkommunikation | ✅ automatisch, Tablet 🟡 (Eingabe auf dem Tablet ✅) | **Eingabe:** 🎤 → Whisper `large-v3-turbo` lokal (GPU) → Text ins Eingabefeld → selbst senden. **Ausgabe:** Antworten der KI werden mit **Piper** lokal vorgelesen (Stimme `de_DE-thorsten-medium`, ~0,5 s je Satz auf der CPU, wird beim ersten Start automatisch geladen). Schreibweisen wie Ø, R 8, mm³ werden sprechbar umgeschrieben. **🔊** schaltet das Vorlesen ab (gemerkt im Browser). **Rückfragen:** Endet die Antwort mit „?“ und ist **👂** an, hört das Mikrofon nach dem Vorlesen automatisch zu, stoppt nach 1,2 s Sprechpause und schreibt die Antwort ins Feld. **Echo-Schutz:** Aufnahme und Wiedergabe laufen nie gleichzeitig, 🎤 während des Vorlesens beendet die Ausgabe, die Browser-Echounterdrückung ist an, und der PC verwirft Aufnahmen, die einem eben vorgelesenen Satz gleichen (≥ 70 % Wortfolge). | Auf dem Tablet prüfen (B14–B17): Lautsprecher → Mikrofon im Raum, Autoplay in Firefox, automatisches Zuhören ohne erneute Mikrofon-Freigabe |
 | 6 | Drahtlose Tablet-Anbindung | 📋 | Nur USB (`adb reverse`), der Dienst lauscht auf 127.0.0.1. | HTTPS mit eigener Zertifizierungsstelle (Mikrofon braucht einen sicheren Kontext), Lauschen im LAN, Kopplung per Zugangsschlüssel/QR-Code, Schutz gegen Zugriff von außen |
 | 7 | Vollständige Dokumentation auf GitHub | ✅ (dieser Stand) | README (DE und EN), STAND.md, Auftrag, reproduzierbarer Funktionstest, Projektregeln (CLAUDE.md/AGENTS.md) | wird mit jedem Abschnitt fortgeschrieben |
 
@@ -85,6 +84,8 @@ Galaxy Tab S8+
 | 19.11.2026 | Abschnitt Linienfarben: `--smoke` (11 Prüfungen inkl. Farbe je Strich, Farbe in Daten und Bild) | bestanden |
 | 19.11.2026 | Abschnitt S Pen: `--smoke` mit echten Stift-/Touch-Ereignissen (Druck 0,1–1,0, Stifttaste, Radierer, Strich-Undo, Handballen nach Stift, große Kontaktfläche, Handballen zuerst, Finger dreht) | bestanden (23 Prüfungen) |
 | 19.11.2026 | Abschnitt S Pen: `--full` (3 Läufe) | 2× bestanden, 1× in Runde 2 Strich nach dem Senden sichtbar (siehe bekannte Fehler), KI-Ergebnisse immer exakt |
+| 19.11.2026 | Abschnitt Sprache: `--smoke` mit Mikrofon-Attrappe (WAV aus Piper, Echo-Erkennung, 🔊 aus, Rückfrage vorlesen → automatisch zuhören → Text im Feld, Dazwischenreden mit 🎤) | bestanden (34 Prüfungen) |
+| 19.11.2026 | Abschnitt Sprache: `--full` (4 Läufe) | Ergebnisse der KI immer exakt, Antwort wird vorgelesen. Strichfehler in Runde 2 in 3 Läufen, nach der Umstellung auf die CPU-Leinwand 2/2 bestanden |
 | 19.11.2026 | Abschnitt Linienfarben: `--full` mit Runde 3 (zwei Farben, zwei Aufgaben, Legende aus dem Text) | bestanden. Runde 3: 11 621 mm³ (Soll 11 621), Legende `{"grün":"Bohrung Ø 4 durchgehend","violett":"Fase 2 mm"}` |
 
 ### Letzter Volltest
@@ -115,11 +116,14 @@ Alle Prüfungen bestanden.
   (`stt.py::_decode`).
 - Firefox für Android schickt ein `SameSite=Strict`-Cookie nach einem aus einer App geöffneten Redirect
   nicht mit. Deshalb gibt es keinen Redirect, und das Cookie ist `Lax`.
-- **Offen, sporadisch:** Nach dem Senden bleibt manchmal ein Strich sichtbar. In 1 von 3 Volltests am
-  19.11. trat das in Runde 2 auf. Gezielt nachgestellt war die Zeichenebene leer. Als Absicherung setzt
-  das Senden jetzt auch einen offenen Strich zurück, und nach jeder Runde wird neu gezeichnet. Der
-  Volltest prüft nach jeder Runde Pixel, Strichzahl und offenen Strich und meldet die Werte, falls
-  der Fehler wieder auftritt.
+- **Behoben (19.11.):** Nach dem Senden blieb manchmal ein Strich sichtbar.
+  - Das Zeichenprotokoll zeigte: Gelöscht wurde, Strichliste leer, kein weiterer Zeichenaufruf.
+    Trotzdem tauchten die Pixel des letzten Strichs wieder auf, selbst nach komplettem Zurücksetzen.
+  - Ursache: verzögertes Zeichnen der GPU-beschleunigten 2D-Leinwand in Chrome.
+  - Abhilfe: Die Zeichenebene ist jetzt eine CPU-Leinwand (`willReadFrequently`), und das Löschen
+    hängt nicht mehr von der Skalierung ab.
+  - Ergebnis: vorher 3 von 3 Volltests mit Fehler in Runde 2, danach 2 von 2 fehlerfrei.
+  - Der Volltest prüft weiter nach jeder Runde und gibt im Fehlerfall Protokoll und Pixeldiagnose aus.
 
 ## Nächste Schritte (Priorität)
 
@@ -129,7 +133,7 @@ Alle Prüfungen bestanden.
    Ramer-Douglas-Peucker + Kreis-Fit), mit Bild und 3D-Ankern an den Agenten
 4. **Native bemaßte Skizzen** (3): erkannte Elemente als SolidCraft-Skizze mit Bedingungen, Maße aus
    Sprache und Text, dof 0 prüfen. Die Skizze ist danach in SolidCraft bearbeitbar.
-5. **Sprachausgabe** (5): Piper lokal, Vorlesen ein/aus, Rückfragen per Sprache beantworten
+5. **Sprache auf dem Tablet prüfen** (B14–B17), gegebenenfalls Lautstärkeschwelle (0,015) und Pause (1,2 s) in `watchSilence` anpassen
 6. **WLAN-Betrieb** (6): HTTPS, LAN-Bindung nur nach Opt-in, Kopplung per QR-Code
 7. Fotoimport von Papierskizzen, Antwort-Knöpfe für Rückfragen, Hervorhebung vor Änderungen
 

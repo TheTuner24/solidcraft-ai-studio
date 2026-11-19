@@ -59,6 +59,17 @@ OK   Große Kontaktfläche wird ignoriert (Handballen)
 OK   Finger dreht das Modell und zeichnet nicht
 OK   Handballen zuerst, dann Stift: Strich entsteht, Modell bewegt sich nicht
 OK   Navigation nach den Tests wieder frei
+OK   Spracheingabe und -ausgabe verfügbar (stt true, tts true)
+OK   Sprachausgabe liefert WAV (… Byte)
+OK   Vorgelesener Satz im Mikrofon wird als Echo erkannt und verworfen
+OK   🔊 schaltet das Vorlesen aus
+OK   Ausgeschaltet: nichts wird vorgelesen
+OK   Während des Vorlesens ist das Mikrofon aus (kein Echo)
+OK   Nach der Rückfrage hört das Mikrofon automatisch zu
+OK   Gesprochene Antwort steht im Eingabefeld: "Durchmesser 5 mm"
+OK   Rückfrage wurde vorgelesen
+OK   🎤 während des Vorlesens: Ausgabe stoppt, Aufnahme startet
+OK   Aufnahme nach dem Unterbrechen wird erkannt
 OK   „Striche löschen“ entfernt alle Striche
 Alle Prüfungen bestanden.
 ```
@@ -68,6 +79,11 @@ erzeugt: Stift mit `pointerType: "pen"` und Druck, Finger als Touch mit Kontaktr
 Radiererende des Stifts (`buttons 32`) lässt sich so nicht erzeugen. Es steht deshalb nur in der
 Tablet-Prüfliste.
 
+Für die Sprachprüfungen startet Chrome mit einer **Mikrofon-Attrappe**, die
+`tests/funktionstest/testdaten/durchmesser.wav` in Schleife abspielt („Durchmesser fünf Millimeter.“,
+mit Piper erzeugt). Spracheingabe und -ausgabe müssen im Studio aktiv sein, also nicht `--no-speech`
+oder `--no-voice`.
+
 ### A3. Volltest mit KI (verbraucht Claude-Kontingent, etwa 1 Minute)
 
 Der Volltest legt mit „Neu“ ein neues Bauteil an. Er soll deshalb gegen eine **eigene Test-Instanz**
@@ -76,7 +92,7 @@ laufen, nicht gegen die Arbeitssitzung:
 ```bash
 mkdir -p /tmp/studio-test
 solidcraft --control 7980 &
-uv run python -m studio --control-port 7980 --port 8766 --projects /tmp/studio-test --no-speech &
+uv run python -m studio --control-port 7980 --port 8766 --projects /tmp/studio-test &
 cd tests/funktionstest
 STUDIO_URL="$(cat /tmp/studio-test/.cache/studio-url.txt)" CONTROL_PORT=7980 npm run full
 ```
@@ -119,6 +135,10 @@ Beim ersten Mal den Link mit `?t=…` öffnen, danach merkt sich Firefox den Zug
 | B10 | „An PC“ | SolidCraft am PC zeigt dieselbe Ansicht | 🟡 |
 | B11 | Speichern | Meldung „Gespeichert: …/Name.sc“, Punkt • neben dem Namen verschwindet | ✅ (automatisch) |
 | B12 | Kabel ziehen, wieder einstecken | nach wenigen Sekunden wieder verbunden (Seite neu laden) | 🟡 |
+| B14 | Eine Frage stellen, auf die die KI zurückfragt (z. B. „Mach eine Bohrung“ ohne Maß) | Rückfrage wird vorgelesen, danach geht 🎤 von selbst an. Antwort sprechen, sie steht im Feld. | 🟡 (Tablet), ✅ automatisch |
+| B15 | Während des Vorlesens 🎤 antippen | Vorlesen stoppt sofort, Aufnahme läuft | 🟡 (Tablet), ✅ automatisch |
+| B16 | Lautsprecher laut, Vorlesen läuft, nicht sprechen | Vorgelesenes landet **nicht** im Eingabefeld (sonst Meldung „Eigene Sprachausgabe … verworfen“) | 🟡 nur Tablet |
+| B17 | 🔊 ausschalten, Seite neu laden | Vorlesen bleibt aus | 🟡 |
 | B13 | Farbpunkt mit dem Stift antippen, Strich zeichnen | Strich in der gewählten Farbe; Bedeutung erscheint nach der KI-Antwort unter dem Farbpunkt | 🟡 |
 
 Legende: ✅ geprüft · 🟡 noch zu prüfen. Ergebnisse gehören in [STAND.md](../STAND.md).
