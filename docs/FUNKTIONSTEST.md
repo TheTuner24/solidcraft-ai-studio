@@ -1,0 +1,114 @@
+# Funktionstest / Functional test
+
+*English summary below.*
+
+Ein reproduzierbarer Test für alle, die SolidCraft AI Studio selbst aufsetzen. Teil A läuft
+automatisch im Browser am PC. Teil B ist eine Prüfliste für das echte Tablet mit Stift.
+
+## Voraussetzungen
+
+- Linux-PC mit SolidCraft ≥ 0.44 (`solidcraft` und `solidcraft-cli` im `PATH`)
+- [uv](https://docs.astral.sh/uv/) und Python ≥ 3.11
+- [Claude Code](https://claude.com/claude-code), angemeldet (`claude` im `PATH`). Nur für den Volltest
+  und die KI-Funktionen.
+- Node.js ≥ 18 und Chrome oder Chromium für die Testautomatik
+- Optional: NVIDIA-GPU für die Spracherkennung (ohne GPU läuft Whisper langsamer auf der CPU)
+- Für Teil B: Android-Tablet mit Stift, Firefox, USB-Debugging aktiv, `adb` am PC
+
+## Teil A – automatischer Test
+
+### A1. Studio starten
+
+```bash
+git clone https://github.com/TheTuner24/solidcraft-ai-studio.git
+cd solidcraft-ai-studio
+./start.sh
+```
+
+Erwartet: SolidCraft öffnet sich (Steuerkanal auf Port 7979). Auf der Konsole steht
+`SolidCraft AI Studio läuft.` mit einem Link `http://localhost:8765/?t=…`.
+
+### A2. Smoke-Test (ohne KI, ändert nichts am Design)
+
+```bash
+cd tests/funktionstest
+npm install
+npm run smoke          # oder: CHROME=/pfad/zu/chrome node funktionstest.mjs --smoke
+```
+
+Erwartet:
+
+```
+OK   WebSocket-Verbindung zum Studio steht
+OK   Oberfläche geladen (three.js, Testschnittstelle)
+OK   Strich wird als ein abgeschlossener Strich erkannt
+OK   Anzeige der Markierung: "1 Strich, …"
+OK   „Striche löschen“ entfernt alle Striche
+Alle Prüfungen bestanden.
+```
+
+### A3. Volltest mit KI (verbraucht Claude-Kontingent, etwa 1 Minute)
+
+Der Volltest legt mit „Neu“ ein neues Bauteil an. Er soll deshalb gegen eine **eigene Test-Instanz**
+laufen, nicht gegen die Arbeitssitzung:
+
+```bash
+mkdir -p /tmp/studio-test
+solidcraft --control 7980 &
+uv run python -m studio --control-port 7980 --port 8766 --projects /tmp/studio-test --no-speech &
+cd tests/funktionstest
+STUDIO_URL="$(cat /tmp/studio-test/.cache/studio-url.txt)" CONTROL_PORT=7980 npm run full
+```
+
+Ablauf:
+1. Neues Bauteil „Funktionstest“
+2. Draufsicht, grob ein Rechteck und zwei Kreise zeichnen
+3. Text senden: Platte 60 × 40 × 5 mm, zwei Bohrungen Ø 5,5 mm, 36 mm Abstand
+4. **Prüfung über den Steuerkanal:** Volumen ≈ 11 762 mm³ (Toleranz ±1 %)
+5. Iso-Ansicht, die senkrechte Kante bei (+30, +20) einkreisen, „Rundung mit acht Millimetern Radius“
+6. **Prüfung:** Volumen ≈ 11 694 mm³ (genau diese eine Kante gerundet, ±5 mm³)
+7. Speichern: `Funktionstest.sc` im Projektordner
+
+Die Prüfung misst das Volumen der echten Geometrie in SolidCraft, sie verlässt sich nicht auf die
+Antwort der KI. Bilder der Ansicht landen in `tests/funktionstest/ergebnis/`. `SICHTBAR=1` zeigt
+den Browser.
+
+## Teil B – Prüfliste auf dem Tablet
+
+Mit `./start.sh` bei angeschlossenem Tablet (USB-Debugging an) öffnet sich die Oberfläche in Firefox.
+Beim ersten Mal den Link mit `?t=…` öffnen, danach merkt sich Firefox den Zugang.
+
+| # | Aktion | Erwartet | Stand |
+|---|---|---|---|
+| B1 | Mit dem Stift einen Strich ziehen | roter Strich, dicker bei mehr Druck | ✅ zeichnen, Druck ungeprüft |
+| B2 | Beim Zeichnen den Handballen auflegen | Modell dreht sich nicht, kein Fingerstrich | 🟡 |
+| B3 | Ein Finger ziehen / zwei Finger spreizen | Modell dreht / zoomt und verschiebt | ✅ |
+| B4 | S-Pen-Taste gedrückt halten und über einen Strich fahren | Strich wird radiert | 🟡 |
+| B5 | Werkzeug „Radierer“, über einen Strich fahren | Strich wird radiert | 🟡 |
+| B6 | Eine Kante einkreisen, „Rundung 3 mm“ eingeben, Senden | KI rundet genau diese Kante, Ansicht aktualisiert sich | ✅ |
+| B7 | 🎤 antippen, Satz sprechen, 🎤 antippen | Satz steht im Eingabefeld (beim ersten Mal Mikrofon erlauben) | ✅ |
+| B8 | „KI-Runde“ antippen, bestätigen | letzte KI-Änderung ist komplett zurückgenommen | 🟡 |
+| B9 | Undo / Redo | einzelne CAD-Schritte zurück/vor | 🟡 |
+| B10 | „An PC“ | SolidCraft am PC zeigt dieselbe Ansicht | 🟡 |
+| B11 | Speichern | Meldung „Gespeichert: …/Name.sc“, Punkt • neben dem Namen verschwindet | ✅ (automatisch) |
+| B12 | Kabel ziehen, wieder einstecken | nach wenigen Sekunden wieder verbunden (Seite neu laden) | 🟡 |
+
+Legende: ✅ geprüft · 🟡 noch zu prüfen. Ergebnisse gehören in [STAND.md](../STAND.md).
+
+---
+
+## English summary
+
+A reproducible test for anyone setting up SolidCraft AI Studio.
+
+- **Part A (automated):**
+  1. Start the studio with `./start.sh`.
+  2. In `tests/funktionstest`, run `npm install`, then `npm run smoke`. This needs no AI and does
+     not change the design.
+  3. For the full test, run `npm run full` against a **separate test instance** (commands in A3).
+     It builds a 60 × 40 × 5 mm plate with two Ø 5.5 mm holes from a sketch and a text prompt,
+     then fillets one circled edge with R 8 and saves the part.
+  4. Results are verified by **measuring the real geometry** through SolidCraft's control channel:
+     volumes of 11 762 mm³ and 11 694 mm³.
+- **Part B (manual, tablet with pen):** the checklist above covers pen drawing, palm rejection,
+  pen button and eraser, finger gestures, edge marking, voice input, undo and save.

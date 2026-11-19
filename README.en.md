@@ -1,0 +1,143 @@
+# SolidCraft AI Studio
+
+*[Deutsche Version](README.md)*
+
+Work on a **real, parametric CAD model** with a pen, your voice and text. You sketch, mark and
+describe on a tablet (built for the Galaxy Tab S8+ with S Pen). An AI agent builds and changes the
+model in the running [SolidCraft](https://github.com/tangency-labs/solidcraft) app on the PC. It works
+step by step, checks its own results and asks when something is unclear.
+
+The studio is a standalone extension, not a fork. It uses only SolidCraft's official interfaces: the
+control channel (`solidcraft --control PORT`) and the MCP server (`solidcraft-cli mcp`). SolidCraft
+updates can be taken without merging.
+
+> **Status:** prototype (milestone 1 reached). What works, what is tested and what is missing is
+> tracked in **[STAND.md](STAND.md)** (German). The requirements are in [docs/AUFTRAG.md](docs/AUFTRAG.md)
+> (German).
+
+## Features
+
+| Feature | Status |
+|---|---|
+| Freehand sketching and marking on the 3D model (pen or mouse) | ✅ tested |
+| Sketch + text → parametric part in SolidCraft | ✅ tested |
+| Circle an edge + describe a change → exactly that edge is changed | ✅ tested |
+| Rotate/zoom the model on the tablet, view refreshes after every change | ✅ tested |
+| Voice input (local Whisper, recognised text goes into the input box) | ✅ tested |
+| Undo/redo, "revert AI turn", saving without overwriting originals | ✅ / 🟡 partly tested |
+| S Pen: pressure, palm rejection, pen button erases | 🟡 implemented, verification pending |
+| Local AI via Ollama (toggle) | ⛔ experimental, not usable with 8 GB VRAM |
+| Line colours whose meaning is set by voice | 📋 planned |
+| Stroke vectorisation, native dimensioned SolidCraft sketches | 📋 planned |
+| Voice output (answers read aloud) | 📋 planned |
+| Wireless over Wi-Fi (no USB) | 📋 planned |
+
+✅ tested · 🟡 implemented, not fully tested · 📋 planned · ⛔ on hold
+
+## Architecture
+
+```
+Tablet (Firefox)                      PC
+┌──────────────────────┐   WebSocket  ┌──────────────────────────────┐ control chan. ┌────────────┐
+│ three.js view        │◄────────────►│ Studio service (Python)      │◄────────────►│ SolidCraft │
+│ pen layer, AI chat   │   /model.glb │  · GLB export on change      │  127.0.0.1   │  (app)     │
+│ microphone           │   /stt       │  · checkpoints, saving       │              └─────▲──────┘
+└──────────────────────┘  adb reverse │  · Whisper (speech → text)   │                    │
+                                      │  · agent: Claude Code ───────┼── MCP ─────────────┘
+                                      └──────────────────────────────┘
+```
+
+- **View:** After every change the studio exports the model as GLB (`file.export`). The tablet shows it
+  with three.js in SolidCraft world coordinates (mm, Z up). The app on the PC shows the same model.
+- **Pen:** Every stroke point gets a 3D anchor: the hit on the model with its face normal, otherwise
+  the ground plane Z = 0. Circled areas are also sampled inside. The agent receives a picture of the
+  view with the strokes, the 3D points and the camera (`ui.camera` format). It uses the points as
+  edge and face picks.
+- **Agent:** A long-running `claude -p` process (stream-json). It has **no** shell and no file access,
+  only the SolidCraft MCP server. Saving, opening and exporting are blocked for it, and file paths are
+  limited to the studio folder. The system prompt is in `studio/agent.py`.
+- **Voice:** The browser microphone records (MediaRecorder, Opus). The PC transcribes locally with
+  faster-whisper (`large-v3-turbo`, German). No audio goes to the internet.
+- **Security:**
+  - The service listens on `127.0.0.1` only and checks the Host header.
+  - It requires an access key, stored as a cookie.
+  - The tablet connects via `adb reverse` over USB.
+  - There are no API keys in the browser or the service: Claude Code uses its own login on the PC.
+- **Nothing gets lost:**
+  - A checkpoint (`edit.checkpoint`) is set before every AI turn.
+  - Saving only goes to the studio folder (default `~/CAD/ai-studio/`). Opened originals are saved
+    as copies.
+  - Every turn (picture, text, strokes, 3D points, camera) is kept in `<project>.studio/`.
+
+## Install and run
+
+Requirements:
+- Linux, SolidCraft ≥ 0.44 (`solidcraft`, `solidcraft-cli` on `PATH`)
+- [uv](https://docs.astral.sh/uv/), [Claude Code](https://claude.com/claude-code) (logged in)
+- For the tablet: `adb`, USB debugging, Firefox
+- For voice: ideally an NVIDIA GPU. The Whisper model (~1.6 GB) is downloaded on first start.
+
+```bash
+git clone https://github.com/TheTuner24/solidcraft-ai-studio.git
+cd solidcraft-ai-studio
+./start.sh
+```
+
+`start.sh` does everything in one step:
+- starts SolidCraft with the control channel (port 7979) if it is not running,
+- sets up the USB forwarding and keeps it alive, even after re-plugging,
+- starts the studio,
+- opens the UI in Firefox on the tablet.
+
+The link with the access key is printed to the console and written to
+`~/CAD/ai-studio/.cache/studio-url.txt`. Open the same link in a browser on the PC.
+
+Options:
+
+| Call | Effect |
+|---|---|
+| `./start.sh --model sonnet` | different Claude model |
+| `./start.sh --no-speech` | without speech recognition |
+| `./start.sh --local-model NAME` | Ollama model for "Lokal" |
+| `CONTROL_PORT`, `STUDIO_PORT`, `STUDIO_WHISPER_MODEL` | ports and Whisper model |
+
+**Desktop menu entry** (optional):
+
+```bash
+sed "s#@DIR@#$PWD#" packaging/solidcraft-ai-studio.desktop.in > ~/.local/share/applications/solidcraft-ai-studio.desktop
+```
+
+## Usage
+
+| Input | Effect |
+|---|---|
+| pen | draw and mark (pressure = line width) |
+| pen button or "Radierer" tool | erase strokes |
+| one finger | rotate the model |
+| two fingers | zoom and pan |
+| mouse on the PC | left draws, right rotates, middle pans, wheel zooms |
+| 🎤 tap – speak – tap | recognised text goes into the input box, check it, then send |
+| Ctrl+Enter | send |
+| KI-Runde | revert the last AI turn completely |
+| An PC | SolidCraft takes over the tablet's camera |
+| Online / Lokal | AI via Claude or via a local Ollama model |
+
+The UI is in German.
+
+## Functional test
+
+A reproducible test (automated in the browser, plus a tablet checklist) is in
+**[docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md)** (with an English summary). In short:
+
+```bash
+cd tests/funktionstest && npm install && npm run smoke
+```
+
+## Contributing and project rules
+
+Rules for development and documentation, also for AI assistants: [CLAUDE.md](CLAUDE.md).
+
+## License
+
+MIT, see [LICENSE](LICENSE). Bundles [three.js](https://threejs.org) 0.170.0 in `web/vendor/` (MIT,
+see `web/vendor/THREE-LICENSE`). SolidCraft is not included and is installed separately.

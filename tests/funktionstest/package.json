@@ -1,0 +1,13 @@
+{
+  "name": "solidcraft-ai-studio-funktionstest",
+  "private": true,
+  "type": "module",
+  "description": "Reproduzierbarer Funktionstest für SolidCraft AI Studio (Browser-Automatisierung)",
+  "scripts": {
+    "smoke": "node funktionstest.mjs --smoke",
+    "full": "node funktionstest.mjs --full"
+  },
+  "devDependencies": {
+    "playwright-core": "1.49.1"
+  }
+}

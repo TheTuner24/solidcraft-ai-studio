@@ -1,13 +1,37 @@
 # SolidCraft AI Studio
 
-Mit Stift und Worten an einem echten, parametrischen CAD-Modell arbeiten. Der Benutzer zeichnet,
-markiert und beschreibt auf dem Tablet (Galaxy Tab S8+ mit S Pen). Ein KI-Agent (Claude Code)
-baut und ändert das Modell in der laufenden [SolidCraft](https://github.com/tangency-labs/solidcraft)-App
-auf dem PC.
+*[English version](README.en.md)*
 
-Das Studio ist eine eigenständige Erweiterung, kein Fork. Es spricht SolidCraft nur über dessen
-offizielle Schnittstellen an: den Steuerkanal (`solidcraft --control PORT`) und den MCP-Server
-(`solidcraft-cli mcp`). Updates von SolidCraft lassen sich deshalb ohne Merge übernehmen.
+Mit Stift, Sprache und Text an einem **echten, parametrischen CAD-Modell** arbeiten. Der Benutzer
+zeichnet, markiert und beschreibt auf dem Tablet (entwickelt für Galaxy Tab S8+ mit S Pen). Ein
+KI-Agent baut und ändert das Modell in der laufenden [SolidCraft](https://github.com/tangency-labs/solidcraft)-App
+auf dem PC, Schritt für Schritt, prüft seine Arbeit und fragt nach, wenn etwas unklar ist.
+
+Das Studio ist eine eigenständige Erweiterung, kein Fork. Es nutzt nur die offiziellen
+Schnittstellen von SolidCraft: den Steuerkanal (`solidcraft --control PORT`) und den MCP-Server
+(`solidcraft-cli mcp`). SolidCraft-Updates lassen sich ohne Merge übernehmen.
+
+> **Stand:** Prototyp (Meilenstein 1 erreicht). Was genau funktioniert, was getestet ist und was
+> fehlt, steht in **[STAND.md](STAND.md)**. Die Anforderungen stehen in [docs/AUFTRAG.md](docs/AUFTRAG.md).
+
+## Was es kann
+
+| Funktion | Stand |
+|---|---|
+| Freihand skizzieren und auf dem 3D-Modell markieren (Stift oder Maus) | ✅ getestet |
+| Skizze + Text → parametrisches Bauteil in SolidCraft | ✅ getestet |
+| Kante einkreisen + Änderung beschreiben → genau diese Kante wird geändert | ✅ getestet |
+| Modell auf dem Tablet drehen/zoomen, Ansicht aktualisiert sich nach jeder Änderung | ✅ getestet |
+| Spracheingabe (lokal mit Whisper, Text landet im Eingabefeld) | ✅ getestet |
+| Undo/Redo, „KI-Runde zurück“, Speichern ohne Originale zu überschreiben | ✅ / 🟡 teilweise getestet |
+| S Pen: Druck, Handballen ignorieren, Stifttaste radiert | 🟡 implementiert, Prüfung offen |
+| KI lokal über Ollama (Umschalter) | ⛔ experimentell, mit 8 GB Grafikspeicher nicht brauchbar |
+| Linienfarben mit Bedeutung per Sprache | 📋 geplant |
+| Vektorisierung der Striche, native bemaßte SolidCraft-Skizzen | 📋 geplant |
+| Sprachausgabe (Antworten vorlesen) | 📋 geplant |
+| Drahtlos über WLAN (ohne USB) | 📋 geplant |
+
+✅ getestet · 🟡 implementiert, nicht vollständig getestet · 📋 geplant · ⛔ zurückgestellt
 
 ## Aufbau
 
@@ -16,115 +40,107 @@ Tablet (Firefox)                      PC
 ┌──────────────────────┐   WebSocket  ┌──────────────────────────────┐  Steuerkanal  ┌────────────┐
 │ three.js-Ansicht     │◄────────────►│ Studio-Dienst (Python)       │◄────────────►│ SolidCraft │
 │ Stift-Ebene, KI-Chat │   /model.glb │  · GLB-Export bei Änderung   │  127.0.0.1   │  (App)     │
-└──────────────────────┘  adb reverse │  · Checkpoints, Speichern    │              └─────▲──────┘
-                                      │  · Claude Code (headless) ───┼── MCP ─────────────┘
+│ Mikrofon             │   /stt       │  · Checkpoints, Speichern    │              └─────▲──────┘
+└──────────────────────┘  adb reverse │  · Whisper (Sprache → Text)  │                    │
+                                      │  · Agent: Claude Code ───────┼── MCP ─────────────┘
                                       └──────────────────────────────┘
 ```
 
-- **Ansicht:** Nach jeder Änderung exportiert das Studio das Modell als GLB (`file.export`), das
-  Tablet zeigt es mit three.js in SolidCraft-Weltkoordinaten (mm, Z oben). Die App am PC zeigt
-  dasselbe Modell.
-- **Stift:** Jeder Strich bekommt pro Punkt einen 3D-Anker. Das ist der Treffer am Modell mit
-  Flächennormale, sonst die Bodenebene Z=0. Eingekreiste Bereiche werden zusätzlich innen abgetastet.
-  Der Agent bekommt das Bild der Ansicht mit den Strichen, die 3D-Treffer und die Kamera im Format
-  von SolidCraft (`ui.camera`). Er nutzt die Treffer als Picks für Kanten und Flächen.
-- **Agent:** Ein langlebiger `claude -p`-Prozess (stream-json). Er hat keine eingebauten Werkzeuge,
-  also keine Shell und keinen Dateizugriff, sondern nur den SolidCraft-MCP-Server. Dateipfade sind
-  auf `~/CAD/ai-studio` begrenzt, Speichern, Öffnen und Export sind ihm gesperrt.
-- **Sprache:** Das Mikrofon nimmt im Browser auf (MediaRecorder, Opus), der PC erkennt den Text lokal mit
-  faster-whisper (`large-v3-turbo`, Deutsch, auf der GPU, etwa 0,3 s pro Satz). Es geht kein Audio ins Internet.
-  Das Modell (~1,6 GB) wird beim ersten Start geladen und bleibt im Grafikspeicher (~1,5 GB).
-  Abschalten mit `--no-speech`, anderes Modell mit `STUDIO_WHISPER_MODEL`.
-- **KI online oder lokal:** Der Knopf „Online/Lokal“ schaltet zwischen Claude (Claude Code, Cloud) und einem
-  Ollama-Modell auf dem PC um (`--local-model`, Standard `qwen3:8b`). Der lokale Agent nutzt dieselben
-  SolidCraft-Werkzeuge über MCP. **Experimentell:** Im Test (RTX 4060, 8 GB) hat `qwen3:8b` die Halterung
-  nicht gebaut. Es scheiterte nach einem Fehler im ersten Versuch, nach 2,5 Minuten. Mit Denkmodus überschritt
-  schon ein einzelner Schritt 10 Minuten, weil das Modell neben Whisper nicht ganz in den Grafikspeicher passt.
-- **Sicherheit:** Der Dienst lauscht nur auf `127.0.0.1` und prüft den Host-Header. Er braucht einen
-  Zugangsschlüssel (`~/CAD/ai-studio/.cache/token`, löschen erzeugt einen neuen), der als Cookie gesetzt wird. Das Tablet kommt
-  per `adb reverse` über USB. Ein API-Schlüssel liegt weder im Browser noch im Dienst: Claude Code
-  nutzt die Anmeldung auf dem PC.
-- **Nichts geht verloren:** Vor jeder KI-Runde setzt das Studio einen Checkpoint (`edit.checkpoint`).
-  „KI-Runde“ nimmt eine ganze Runde zurück, Undo/Redo arbeiten schrittweise. Gespeichert wird nur
-  in `~/CAD/ai-studio/`. Ein geöffnetes Original aus `~/CAD` wird als Kopie gespeichert, nie
-  überschrieben. Jede Runde (Bild, Text, Striche, Kamera) wird in `<Projekt>.studio/` abgelegt.
+- **Ansicht:** Nach jeder Änderung exportiert das Studio das Modell als GLB (`file.export`). Das Tablet
+  zeigt es mit three.js in SolidCraft-Weltkoordinaten (mm, Z oben). Die App am PC zeigt dasselbe Modell.
+- **Stift:** Jeder Strichpunkt bekommt einen 3D-Anker. Das ist der Treffer am Modell mit
+  Flächennormale, sonst die Bodenebene Z = 0. Eingekreiste Bereiche werden innen abgetastet. Der Agent
+  bekommt das Bild der Ansicht mit den Strichen, die 3D-Punkte und die Kamera (`ui.camera`-Format).
+  Er nutzt die Punkte als Picks für Kanten und Flächen.
+- **Agent:** Ein langlebiger `claude -p`-Prozess (stream-json). Er hat **keine** Shell und keinen
+  Dateizugriff, nur den SolidCraft-MCP-Server. Speichern, Öffnen und Export sind ihm gesperrt,
+  Dateipfade auf den Studio-Ordner begrenzt. Die Systemanweisung steht in `studio/agent.py`.
+- **Sprache:** Das Browser-Mikrofon nimmt auf (MediaRecorder, Opus). Der PC erkennt den Text lokal mit
+  faster-whisper (`large-v3-turbo`, Deutsch). Es geht kein Audio ins Internet.
+- **Sicherheit:**
+  - Der Dienst lauscht nur auf `127.0.0.1` und prüft den Host-Header.
+  - Er braucht einen Zugangsschlüssel als Cookie.
+  - Das Tablet verbindet sich per `adb reverse` über USB.
+  - API-Schlüssel gibt es weder im Browser noch im Dienst: Claude Code nutzt die eigene Anmeldung am PC.
+- **Nichts geht verloren:**
+  - Vor jeder KI-Runde setzt das Studio einen Checkpoint (`edit.checkpoint`).
+  - Gespeichert wird nur im Studio-Ordner (Standard `~/CAD/ai-studio/`). Geöffnete Originale werden
+    als Kopie gespeichert.
+  - Jede Runde (Bild, Text, Striche, 3D-Punkte, Kamera) wird in `<Projekt>.studio/` abgelegt.
 
-## Starten
+## Installation und Start
 
-Voraussetzungen: SolidCraft ≥ 0.44 (`solidcraft`, `solidcraft-cli` im `PATH`), Claude Code (angemeldet),
-`uv`, für das Tablet `adb` mit freigegebenem USB-Debugging und Firefox.
+Voraussetzungen:
+- Linux, SolidCraft ≥ 0.44 (`solidcraft`, `solidcraft-cli` im `PATH`)
+- [uv](https://docs.astral.sh/uv/), [Claude Code](https://claude.com/claude-code) (angemeldet)
+- Für das Tablet: `adb`, USB-Debugging, Firefox
+- Für Sprache: am besten eine NVIDIA-GPU. Das Whisper-Modell (~1,6 GB) wird beim ersten Start geladen.
 
 ```bash
+git clone https://github.com/TheTuner24/solidcraft-ai-studio.git
+cd solidcraft-ai-studio
 ./start.sh
 ```
 
-Oder über den Startmenü-Eintrag **SolidCraft AI Studio** (`~/.local/share/applications/solidcraft-ai-studio.desktop`,
-ruft `start.sh` ohne Terminal auf: Meldungen als Benachrichtigung, Protokoll in `~/CAD/ai-studio/.cache/studio.log`).
-Läuft das Studio schon, verbindet ein zweiter Aufruf nur das Tablet neu. Wurde SolidCraft vom Skript gestartet,
-beendet sich das Studio mit SolidCraft.
+`start.sh` erledigt alles in einem Schritt:
+- startet SolidCraft mit Steuerkanal (Port 7979), falls es nicht läuft,
+- richtet die USB-Weiterleitung ein und hält sie aktuell, auch nach Neueinstecken,
+- startet das Studio,
+- öffnet die Oberfläche in Firefox auf dem Tablet.
 
-Das Skript startet SolidCraft mit Steuerkanal (Port 7979), falls es noch nicht läuft. Es richtet die
-USB-Weiterleitung ein, startet das Studio und öffnet die Oberfläche in Firefox auf dem Tablet. Den
-Link mit Zugangsschlüssel gibt es auf der Konsole aus, er steht auch in
+Den Link mit Zugangsschlüssel zeigt es auf der Konsole, er steht auch in
 `~/CAD/ai-studio/.cache/studio-url.txt`. Am PC öffnet man denselben Link im Browser.
 
-Optionen: `./start.sh --model sonnet` (anderes Modell), Umgebungsvariablen `CONTROL_PORT` und
-`STUDIO_PORT`.
+Optionen:
+
+| Aufruf | Wirkung |
+|---|---|
+| `./start.sh --model sonnet` | anderes Claude-Modell |
+| `./start.sh --no-speech` | ohne Spracherkennung |
+| `./start.sh --local-model NAME` | Ollama-Modell für „Lokal“ |
+| `CONTROL_PORT`, `STUDIO_PORT`, `STUDIO_WHISPER_MODEL` | Ports und Whisper-Modell |
+
+**Startmenü-Eintrag** (optional):
+
+```bash
+sed "s#@DIR@#$PWD#" packaging/solidcraft-ai-studio.desktop.in > ~/.local/share/applications/solidcraft-ai-studio.desktop
+```
+
+Aus dem Startmenü gestartet, meldet sich das Studio per Benachrichtigung und schreibt nach
+`~/CAD/ai-studio/.cache/studio.log`. Ein zweiter Aufruf verbindet nur das Tablet neu. Wurde
+SolidCraft vom Skript gestartet, endet das Studio mit SolidCraft.
 
 ## Bedienung
 
 | Eingabe | Wirkung |
 |---|---|
-| S Pen | zeichnen und markieren (Druckstärke = Strichbreite) |
-| S-Pen-Taste gedrückt oder Werkzeug „Radierer“ | Striche wegradieren |
+| Stift | zeichnen und markieren (Druck = Strichbreite) |
+| Stifttaste oder Werkzeug „Radierer“ | Striche radieren |
 | ein Finger | Modell drehen |
 | zwei Finger | zoomen und verschieben |
 | Maus am PC | links zeichnen, rechts drehen, Mitte verschieben, Rad zoomen |
-| 🎤 antippen, sprechen, nochmal antippen | gesprochener Text kommt ins Eingabefeld, prüfen, dann senden |
-| Strg+Enter im Textfeld | senden |
+| 🎤 antippen – sprechen – antippen | erkannter Text kommt ins Eingabefeld, prüfen, dann senden |
+| Strg+Enter | senden |
+| KI-Runde | letzte KI-Änderung komplett zurücknehmen |
+| An PC | SolidCraft übernimmt die Kamera des Tablets |
+| Online / Lokal | KI über Claude oder über ein lokales Ollama-Modell |
 
-Der Handballen wird ignoriert, solange der Stift aktiv ist. Mit „An PC“ übernimmt die SolidCraft-App
-die Kamera des Tablets.
+## Funktionstest
 
-## Stand (Meilenstein 1, 18.11.2026)
+Ein reproduzierbarer Test (automatisch im Browser, dazu eine Prüfliste für das Tablet) steht in
+**[docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md)**. Kurzform:
 
-Getestet mit SolidCraft 0.44.1 und Claude Code 2.1.326. Der Durchlauf lief automatisiert in Chrome
-am PC (Maus statt Stift):
+```bash
+cd tests/funktionstest && npm install && npm run smoke
+```
 
-1. SolidCraft mit Steuerkanal starten, Studio-Oberfläche öffnen ✔
-2. In der Draufsicht eine grobe Skizze zeichnen (Rechteck, zwei Kreise) ✔
-3. Mit Text senden: „Grundplatte 60 × 40 × 5 mm, zwei Bohrungen Ø 5,5 mm, 36 mm Abstand“ ✔
-4. Der Agent baut ein parametrisches Bauteil (Parameter `L`, `B`, `T`, `d_bohr`, `a_bohr`), misst nach
-   und sagt, was er angenommen hat (durchgehende Bohrungen) ✔
-5. Das Modell erscheint in der App am PC und auf der Oberfläche ✔
-6. Eine senkrechte Kante einkreisen und „Rundung 8 mm“ sagen: Der Agent erkennt die Kante aus den
-   3D-Treffern und rundet genau diese, als neues Feature mit Parameter `r_ecke` ✔
-7. Speichern nach `~/CAD/ai-studio/Halterung.sc`, Runden in `Halterung.studio/` ✔
+## Mitarbeit und Projektregeln
 
-Eine KI-Runde dauerte im Test 10–20 Sekunden.
-
-### Einschränkungen
-
-- Mit echtem S Pen auf dem Tablet ist noch nicht getestet. Das Zeichnen läuft über Pointer Events
-  mit `pointerType === 'pen'`. Die Erkennung der S-Pen-Taste als Radierer ist noch nicht geprüft.
-- Die Spracheingabe ist mit Aufnahmen getestet, aber noch nicht mit dem Mikrofon des Tablets. Firefox fragt
-  beim ersten Mal nach der Mikrofon-Erlaubnis.
-- Die Ansicht auf dem Tablet ist ein Netz-Export: Sie zeigt Flächen und Kanten, aber keine
-  Skizzen, Achsen oder Bemaßungen aus SolidCraft.
-- Der Agent bekommt Freihandskizzen als Bild. Formen erkennt er gut, Maße müssen aus dem Text kommen.
-- Nur ein Tablet zur Zeit sinnvoll: Alle verbundenen Oberflächen teilen sich denselben Agenten.
-- „Öffnen“ zeigt nur `.sc`-Dateien direkt in `~/CAD` und `~/CAD/ai-studio`.
-
-## Nächste Schritte
-
-1. Test auf dem Galaxy Tab mit S Pen: Handballen, Druck, S-Pen-Taste, Zwei-Finger-Gesten.
-2. Sprache weiter: optional sofort senden, Antworten mit Piper vorlesen.
-3. Fotos von Papierskizzen importieren (Kamera oder Datei im Browser, als Bild an den Agenten).
-4. Rückfragen des Agenten mit Antwort-Knöpfen. Bevor der Agent ändert, zeigt das Tablet Kanten und
-   Flächen hervorgehoben (über `select.set`), der Benutzer bestätigt.
-5. HTTPS mit eigener CA für den Betrieb im WLAN ohne USB.
+Regeln für Weiterentwicklung und Dokumentation, auch für KI-Assistenten: [CLAUDE.md](CLAUDE.md).
+Den aktuellen Stand und die nächsten Schritte beschreibt [STAND.md](STAND.md).
 
 ## Lizenz
 
-MIT, siehe [LICENSE](LICENSE). Mitgeliefert ist [three.js](https://threejs.org) 0.170.0 in `web/vendor/`
-(MIT, siehe `web/vendor/THREE-LICENSE`). SolidCraft selbst ist nicht enthalten, es wird separat installiert.
+MIT, siehe [LICENSE](LICENSE). Mitgeliefert ist [three.js](https://threejs.org) 0.170.0 in
+`web/vendor/` (MIT, siehe `web/vendor/THREE-LICENSE`). SolidCraft ist nicht enthalten und wird
+separat installiert.
