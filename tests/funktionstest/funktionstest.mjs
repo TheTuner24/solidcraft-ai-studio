@@ -180,6 +180,8 @@ if (MODE === 'smoke') {
   ok((await cam()) !== c0 && (await state()).strokes === 0, 'Finger dreht das Modell und zeichnet nicht');
   // Handballen liegt zuerst auf, dann setzt der Stift auf, der Ballen bewegt sich mit
   await page.waitForTimeout(800);
+  // Nachlauf (Dämpfung) der vorigen Fingerdrehung abwarten, bis die Kamera stillsteht
+  for (let i = 0, prev = ''; i < 50; i++) { const now = await cam(); if (now === prev) break; prev = now; await page.waitForTimeout(100); }
   c0 = await cam();
   const tp = (x, y) => [{ x, y, radiusX: 6, radiusY: 6, force: 1, id: 9 }];
   const pe = (type, x, y, extra = {}) => cdp.send('Input.dispatchMouseEvent',
@@ -198,6 +200,29 @@ if (MODE === 'smoke') {
   const inp = await page.evaluate(() => window.studioDebug.input());
   ok(inp.controls && inp.ignoredTouches === 0, 'Navigation nach den Tests wieder frei');
   await page.click('#fit');
+
+  // Skizze nach dem Senden zurückholen (Senden wird abgefangen, keine KI nötig)
+  await page.click('#palette [data-color="blau"]');
+  await pen(line(cx - 120, cy + 40, cx + 120, cy + 40, 10));
+  await page.click('#palette [data-color="rot"]');
+  await pen(line(cx - 120, cy + 90, cx + 120, cy + 90, 10));
+  await page.evaluate(() => { window.__send = WebSocket.prototype.send;
+    WebSocket.prototype.send = function (d) { if (!String(d).includes('"prompt"')) window.__send.call(this, d); }; });
+  await page.fill('#text', 'Test ohne KI');
+  await page.click('#send');
+  await page.evaluate(() => { WebSocket.prototype.send = window.__send; });
+  ok((await state()).strokes === 0, 'Nach dem Senden ist die Zeichenebene leer');
+  const camBefore = await cam();
+  await page.click('#fit');
+  await page.waitForTimeout(300);
+  await page.click('#restore');
+  await page.waitForTimeout(300);
+  s = await state();
+  ok(s.strokes === 2 && JSON.stringify(s.strokeColors) === '["blau","rot"]', '„⤺ Skizze“ holt die gesendete Skizze mit Farben zurück');
+  ok((await cam()) === camBefore, 'Blickwinkel der Skizze wird wiederhergestellt');
+  ok((await page.evaluate(() => window.studioDebug.overlayPixels())) > 100, 'Zurückgeholte Striche sind sichtbar');
+  await page.click('#clear');
+  await page.fill('#text', '');
 
   // Sprache in beide Richtungen (Mikrofon-Attrappe spielt testdaten/durchmesser.wav in Schleife)
   const sp = () => page.evaluate(() => window.studioDebug.speech());

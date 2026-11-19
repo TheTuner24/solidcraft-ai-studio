@@ -59,6 +59,10 @@ OK   Große Kontaktfläche wird ignoriert (Handballen)
 OK   Finger dreht das Modell und zeichnet nicht
 OK   Handballen zuerst, dann Stift: Strich entsteht, Modell bewegt sich nicht
 OK   Navigation nach den Tests wieder frei
+OK   Nach dem Senden ist die Zeichenebene leer
+OK   „⤺ Skizze“ holt die gesendete Skizze mit Farben zurück
+OK   Blickwinkel der Skizze wird wiederhergestellt
+OK   Zurückgeholte Striche sind sichtbar
 OK   Spracheingabe und -ausgabe verfügbar (stt true, tts true)
 OK   Sprachausgabe liefert WAV (… Byte)
 OK   Vorgelesener Satz im Mikrofon wird als Echo erkannt und verworfen
@@ -139,6 +143,7 @@ Beim ersten Mal den Link mit `?t=…` öffnen, danach merkt sich Firefox den Zug
 | B15 | Während des Vorlesens 🎤 antippen | Vorlesen stoppt sofort, Aufnahme läuft | 🟡 (Tablet), ✅ automatisch |
 | B16 | Lautsprecher laut, Vorlesen läuft, nicht sprechen | Vorgelesenes landet **nicht** im Eingabefeld (sonst Meldung „Eigene Sprachausgabe … verworfen“) | 🟡 nur Tablet |
 | B17 | 🔊 ausschalten, Seite neu laden | Vorlesen bleibt aus | 🟡 |
+| B18 | Skizze senden, KI versteht falsch → „KI-Runde“ | Änderung ist zurückgenommen, Skizze ist wieder da (gleicher Blickwinkel), korrigieren, neu senden | 🟡 (Tablet), ✅ automatisch (ohne KI) |
 | B13 | Farbpunkt mit dem Stift antippen, Strich zeichnen | Strich in der gewählten Farbe; Bedeutung erscheint nach der KI-Antwort unter dem Farbpunkt | ✅ Tablet (20.11.) |
 
 Legende: ✅ geprüft · ❌ Fehler · 🟡 noch zu prüfen. Ergebnisse gehören in [STAND.md](../STAND.md).

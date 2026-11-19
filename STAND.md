@@ -50,7 +50,7 @@ Galaxy Tab S8+
 | A: Maße und Beschriftungen ergänzen | 🟡 | nur als Bild (handschriftlich) bzw. per Text/Sprache. Keine Handschrifterkennung, keine Bemaßungsobjekte |
 | A: Vorhandene Zeichnungen öffnen | 🟡 | `.sc` aus dem Studio-Ordner und dessen Elternordner. Originale werden als Kopie gespeichert. Nicht automatisch getestet. |
 | A: Fotos von Papierskizzen importieren | 📋 | |
-| A: Korrigieren und löschen | ✅ | Radierer, „Striche löschen“ (Smoke-Test) |
+| A: Korrigieren und löschen | ✅ | Radierer, „↩ Strich“, „✕ Alle“. „⤺ Skizze“ holt eine gesendete Skizze zum Korrigieren zurück, „KI-Runde“ nimmt die Änderung zurück und bringt die Skizze wieder (Wunsch aus dem Tablet-Test 20.11.). |
 | B: Skizze und Sprache gemeinsam interpretieren | ✅ | Bild, Striche und Text in einer Runde |
 | B: Geometrie und Maße erkennen | ✅ | Form aus der Skizze, Maße aus dem Text |
 | B: Gezielt nachfragen | 🟡 | per Agent-Regel. Rückfragen kommen als Text, ohne Antwort-Knöpfe. Kein gezielter Test. |
@@ -86,6 +86,7 @@ Galaxy Tab S8+
 | 19.11.2026 | Abschnitt S Pen: `--smoke` mit echten Stift-/Touch-Ereignissen (Druck 0,1–1,0, Stifttaste, Radierer, Strich-Undo, Handballen nach Stift, große Kontaktfläche, Handballen zuerst, Finger dreht) | bestanden (23 Prüfungen) |
 | 19.11.2026 | Abschnitt S Pen: `--full` (3 Läufe) | 2× bestanden, 1× in Runde 2 Strich nach dem Senden sichtbar (siehe bekannte Fehler), KI-Ergebnisse immer exakt |
 | 19.11.2026 | Abschnitt Sprache: `--smoke` mit Mikrofon-Attrappe (WAV aus Piper, Echo-Erkennung, 🔊 aus, Rückfrage vorlesen → automatisch zuhören → Text im Feld, Dazwischenreden mit 🎤) | bestanden (34 Prüfungen) |
+| 20.11.2026 | Skizze zurückholen: `--smoke` (Senden abgefangen, Skizze mit Farben und Blickwinkel zurück, sichtbar) | bestanden. Dazu Testkorrektur: vor der Handballen-Prüfung warten, bis die Kamera nach der Fingerdrehung stillsteht. |
 | 20.11.2026 | **Praxistest auf dem Galaxy Tab S8+ durch den Benutzer** | Druck ✅, Handballen ✅, Drehen/Zoomen ✅, mehrere Farben mit verschiedenen Anweisungen ✅, Sprachausgabe ✅, **Radieren mit S-Pen-Taste ❌** (radiert nicht). Rest der Prüfliste noch offen. |
 | 19.11.2026 | Abschnitt Sprache: `--full` (4 Läufe) | Ergebnisse der KI immer exakt, Antwort wird vorgelesen. Strichfehler in Runde 2 in 3 Läufen, nach der Umstellung auf die CPU-Leinwand 2/2 bestanden |
 | 19.11.2026 | Abschnitt Linienfarben: `--full` mit Runde 3 (zwei Farben, zwei Aufgaben, Legende aus dem Text) | bestanden. Runde 3: 11 621 mm³ (Soll 11 621), Legende `{"grün":"Bohrung Ø 4 durchgehend","violett":"Fase 2 mm"}` |

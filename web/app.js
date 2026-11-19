@@ -426,7 +426,7 @@ function handle(m) {
     case 'status': if (m.solidcraft === false) toast('SolidCraft nicht erreichbar: ' + m.text); break;
     case 'saved': toast('Gespeichert: ' + m.path); break;
     case 'error': toast(m.text); break;
-    case 'reset': $('#log').innerHTML = ''; firstModel = true; strokes = []; drawStrokes(); break;
+    case 'reset': $('#log').innerHTML = ''; firstModel = true; strokes = []; lastSent = null; $('#restore').disabled = true; drawStrokes(); break;
     case 'files': showFiles(m.files); break;
     case 'legend': legend = m.legend || {}; renderPalette(); break;
     case 'backend': {
@@ -487,6 +487,11 @@ $('#composer').addEventListener('submit', (e) => {
   agentMsg({ kind: 'user', text, marks: strokes.length, image: strokes.length ? image : null });
   pendingLocalUser = true;
   $('#text').value = '';
+  // Skizze mit Blickwinkel merken: „⤺ Skizze“ und „KI-Runde zurück“ holen sie zum Korrigieren zurück.
+  if (strokes.length) {
+    lastSent = { strokes: strokes.slice(), cam: camera.position.clone(), target: controls.target.clone() };
+    $('#restore').disabled = false;
+  }
   strokes = []; current = null; controls.enabled = true; drawStrokes('senden');
 });
 // ---------- Sprache in beide Richtungen ----------
@@ -677,7 +682,24 @@ $('#clear').onclick = () => { strokes = []; drawStrokes(); };
 $('#undostroke').onclick = () => { strokes.pop(); drawStrokes(); };
 $('#undo').onclick = () => send({ type: 'undo' });
 $('#redo').onclick = () => send({ type: 'redo' });
-$('#revert').onclick = () => { if (confirm('Letzte KI-Runde komplett zurücknehmen?')) send({ type: 'revert_turn' }); };
+$('#revert').onclick = () => {
+  if (!confirm('Letzte KI-Runde komplett zurücknehmen? Deine Skizze dazu kommt zum Korrigieren zurück.')) return;
+  send({ type: 'revert_turn' });
+  restoreSketch();
+};
+// Zuletzt gesendete Skizze zurückholen (mit dem Blickwinkel, in dem sie gezeichnet wurde).
+let lastSent = null;
+function restoreSketch() {
+  if (!lastSent) return;
+  camera.position.copy(lastSent.cam);
+  controls.target.copy(lastSent.target);
+  controls.update();
+  const have = new Set(strokes);
+  strokes = [...lastSent.strokes.filter((s) => !have.has(s)), ...strokes];
+  drawStrokes('zurueckgeholt');
+  toast('Skizze zurückgeholt: korrigieren und neu senden.');
+}
+$('#restore').onclick = restoreSketch;
 $('#fit').onclick = () => fitView();
 $('#top').onclick = () => fitView(VIEW_TOP.clone());
 $('#iso').onclick = () => fitView(VIEW_ISO.clone());

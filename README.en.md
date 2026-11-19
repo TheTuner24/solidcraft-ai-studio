@@ -134,6 +134,7 @@ sed "s#@DIR@#$PWD#" packaging/solidcraft-ai-studio.desktop.in > ~/.local/share/a
 | colour dot in the toolbar | choose the stroke colour. The meaning you gave the AI is shown below it. |
 | pen button held, eraser end or "Radierer" tool | erase strokes |
 | ↩ Strich / ✕ Alle | remove the last stroke / all strokes |
+| ⤺ Skizze | bring back the last sent sketch with its view angle, correct it and send again. "KI-Runde" brings it back automatically. |
 | one finger | rotate the model |
 | two fingers | zoom and pan |
 | mouse on the PC | left draws, right rotates, middle pans, wheel zooms |
