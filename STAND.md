@@ -21,7 +21,8 @@ Galaxy Tab S8+
 ## Kurzfassung
 
 - **Linienfarben (1), S-Pen-Bedienung (4) und Sprache in beide Richtungen (5) sind fertig und
-  automatisch getestet** (19.11.2026). Die Prüfung auf dem echten Tablet steht noch aus.
+  automatisch getestet** (19.11.2026). Auf dem Tablet bestätigt (20.11.): Druck, Handballen,
+  Navigation, mehrere Farben, Sprachausgabe. **Fehler:** Die S-Pen-Taste radiert auf dem Tablet nicht.
 - **Meilenstein 1 ist erreicht.** Skizze und Text auf dem Tablet ergeben ein parametrisches Bauteil
   in SolidCraft. Danach kommen Kante einkreisen, Änderung beschreiben, das bestehende Modell ändern
   und speichern. Der Ablauf ist automatisch getestet und auf dem Tablet benutzt.
@@ -85,6 +86,7 @@ Galaxy Tab S8+
 | 19.11.2026 | Abschnitt S Pen: `--smoke` mit echten Stift-/Touch-Ereignissen (Druck 0,1–1,0, Stifttaste, Radierer, Strich-Undo, Handballen nach Stift, große Kontaktfläche, Handballen zuerst, Finger dreht) | bestanden (23 Prüfungen) |
 | 19.11.2026 | Abschnitt S Pen: `--full` (3 Läufe) | 2× bestanden, 1× in Runde 2 Strich nach dem Senden sichtbar (siehe bekannte Fehler), KI-Ergebnisse immer exakt |
 | 19.11.2026 | Abschnitt Sprache: `--smoke` mit Mikrofon-Attrappe (WAV aus Piper, Echo-Erkennung, 🔊 aus, Rückfrage vorlesen → automatisch zuhören → Text im Feld, Dazwischenreden mit 🎤) | bestanden (34 Prüfungen) |
+| 20.11.2026 | **Praxistest auf dem Galaxy Tab S8+ durch den Benutzer** | Druck ✅, Handballen ✅, Drehen/Zoomen ✅, mehrere Farben mit verschiedenen Anweisungen ✅, Sprachausgabe ✅, **Radieren mit S-Pen-Taste ❌** (radiert nicht). Rest der Prüfliste noch offen. |
 | 19.11.2026 | Abschnitt Sprache: `--full` (4 Läufe) | Ergebnisse der KI immer exakt, Antwort wird vorgelesen. Strichfehler in Runde 2 in 3 Läufen, nach der Umstellung auf die CPU-Leinwand 2/2 bestanden |
 | 19.11.2026 | Abschnitt Linienfarben: `--full` mit Runde 3 (zwei Farben, zwei Aufgaben, Legende aus dem Text) | bestanden. Runde 3: 11 621 mm³ (Soll 11 621), Legende `{"grün":"Bohrung Ø 4 durchgehend","violett":"Fase 2 mm"}` |
 
@@ -127,7 +129,11 @@ Alle Prüfungen bestanden.
 
 ## Nächste Schritte (Priorität)
 
-1. **S-Pen-Test auf dem Tablet** nach Prüfliste ([docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md), B1–B5, B13).
+1. **S-Pen-Taste als Radierer auf dem Tablet reparieren:** Firefox auf dem Galaxy Tab meldet die Taste
+   offenbar nicht als `buttons & 2`. Zuerst ermitteln, welche Ereignisse wirklich ankommen
+   (Diagnoseanzeige), dann passend auswerten. Danach den Rest der Tablet-Prüfliste
+   ([docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md), Teil B) abarbeiten. Bisher geplant war der
+   **S-Pen-Test auf dem Tablet** nach Prüfliste ([docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md), B1–B5, B13).
    Gegebenenfalls `PALM_SIZE`/`PALM_MS` in `web/app.js` anpassen.
 3. **Vektorisierung** (2): Striche serverseitig in Linien, Bögen und Kreise zerlegen (z. B.
    Ramer-Douglas-Peucker + Kreis-Fit), mit Bild und 3D-Ankern an den Agenten

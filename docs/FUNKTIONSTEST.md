@@ -122,10 +122,10 @@ Beim ersten Mal den Link mit `?t=…` öffnen, danach merkt sich Firefox den Zug
 
 | # | Aktion | Erwartet | Stand |
 |---|---|---|---|
-| B1 | Mit dem Stift leicht und dann fest zeichnen | Strich wird mit dem Druck sichtbar breiter | ✅ zeichnen, Druck 🟡 (Tablet) |
-| B2 | Beim Zeichnen den Handballen auflegen und bewegen, auch vor dem Aufsetzen des Stifts | Modell dreht sich nicht, kein Fingerstrich | 🟡 (Tablet), ✅ automatisch |
-| B3 | Ein Finger ziehen / zwei Finger spreizen | Modell dreht / zoomt und verschiebt | ✅ |
-| B4 | S-Pen-Taste gedrückt halten und über einen Strich fahren | Strich wird radiert. Hängt davon ab, ob Firefox die Taste meldet. | 🟡 (Tablet), ✅ automatisch |
+| B1 | Mit dem Stift leicht und dann fest zeichnen | Strich wird mit dem Druck sichtbar breiter | ✅ Tablet (20.11.) |
+| B2 | Beim Zeichnen den Handballen auflegen und bewegen, auch vor dem Aufsetzen des Stifts | Modell dreht sich nicht, kein Fingerstrich | ✅ Tablet (20.11.) |
+| B3 | Ein Finger ziehen / zwei Finger spreizen | Modell dreht / zoomt und verschiebt | ✅ Tablet (20.11.) |
+| B4 | S-Pen-Taste gedrückt halten und über einen Strich fahren | Strich wird radiert. Hängt davon ab, ob Firefox die Taste meldet. | ❌ Tablet (20.11.): radiert nicht, ✅ automatisch |
 | B5 | Werkzeug „Radierer“, über einen Strich fahren | Strich wird radiert | 🟡 (Tablet), ✅ automatisch |
 | B5a | „↩ Strich“ | nur der letzte Strich verschwindet | ✅ automatisch |
 | B6 | Eine Kante einkreisen, „Rundung 3 mm“ eingeben, Senden | KI rundet genau diese Kante, Ansicht aktualisiert sich | ✅ |
@@ -139,9 +139,9 @@ Beim ersten Mal den Link mit `?t=…` öffnen, danach merkt sich Firefox den Zug
 | B15 | Während des Vorlesens 🎤 antippen | Vorlesen stoppt sofort, Aufnahme läuft | 🟡 (Tablet), ✅ automatisch |
 | B16 | Lautsprecher laut, Vorlesen läuft, nicht sprechen | Vorgelesenes landet **nicht** im Eingabefeld (sonst Meldung „Eigene Sprachausgabe … verworfen“) | 🟡 nur Tablet |
 | B17 | 🔊 ausschalten, Seite neu laden | Vorlesen bleibt aus | 🟡 |
-| B13 | Farbpunkt mit dem Stift antippen, Strich zeichnen | Strich in der gewählten Farbe; Bedeutung erscheint nach der KI-Antwort unter dem Farbpunkt | 🟡 |
+| B13 | Farbpunkt mit dem Stift antippen, Strich zeichnen | Strich in der gewählten Farbe; Bedeutung erscheint nach der KI-Antwort unter dem Farbpunkt | ✅ Tablet (20.11.) |
 
-Legende: ✅ geprüft · 🟡 noch zu prüfen. Ergebnisse gehören in [STAND.md](../STAND.md).
+Legende: ✅ geprüft · ❌ Fehler · 🟡 noch zu prüfen. Ergebnisse gehören in [STAND.md](../STAND.md).
 
 ---
 
