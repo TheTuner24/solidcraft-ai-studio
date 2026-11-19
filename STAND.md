@@ -132,16 +132,14 @@ Alle Prüfungen bestanden.
 1. **S-Pen-Taste als Radierer auf dem Tablet reparieren:** Firefox auf dem Galaxy Tab meldet die Taste
    offenbar nicht als `buttons & 2`. Zuerst ermitteln, welche Ereignisse wirklich ankommen
    (Diagnoseanzeige), dann passend auswerten. Danach den Rest der Tablet-Prüfliste
-   ([docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md), Teil B) abarbeiten. Bisher geplant war der
-   **S-Pen-Test auf dem Tablet** nach Prüfliste ([docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md), B1–B5, B13).
-   Gegebenenfalls `PALM_SIZE`/`PALM_MS` in `web/app.js` anpassen.
-3. **Vektorisierung** (2): Striche serverseitig in Linien, Bögen und Kreise zerlegen (z. B.
+   ([docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md), Teil B) abarbeiten.
+2. **Vektorisierung** (2): Striche serverseitig in Linien, Bögen und Kreise zerlegen (z. B.
    Ramer-Douglas-Peucker + Kreis-Fit), mit Bild und 3D-Ankern an den Agenten
-4. **Native bemaßte Skizzen** (3): erkannte Elemente als SolidCraft-Skizze mit Bedingungen, Maße aus
+3. **Native bemaßte Skizzen** (3): erkannte Elemente als SolidCraft-Skizze mit Bedingungen, Maße aus
    Sprache und Text, dof 0 prüfen. Die Skizze ist danach in SolidCraft bearbeitbar.
-5. **Sprache auf dem Tablet prüfen** (B14–B17), gegebenenfalls Lautstärkeschwelle (0,015) und Pause (1,2 s) in `watchSilence` anpassen
-6. **WLAN-Betrieb** (6): HTTPS, LAN-Bindung nur nach Opt-in, Kopplung per QR-Code
-7. Fotoimport von Papierskizzen, Antwort-Knöpfe für Rückfragen, Hervorhebung vor Änderungen
+4. **Sprache auf dem Tablet prüfen** (B14–B17), gegebenenfalls Lautstärkeschwelle (0,015) und Pause (1,2 s) in `watchSilence` anpassen
+5. **WLAN-Betrieb** (6): HTTPS, LAN-Bindung nur nach Opt-in, Kopplung per QR-Code
+6. Fotoimport von Papierskizzen, Antwort-Knöpfe für Rückfragen, Hervorhebung vor Änderungen
 
 ## Für die nächste Sitzung
 
