@@ -49,9 +49,24 @@ OK   Strichdaten für die KI enthalten die Farbe je Strich
 OK   Übertragenes Bild enthält den blauen Strich
 OK   Anzeige zählt Striche je Farbe
 OK   Palette mit 6 Farben
+OK   Stift zeichnet mit Druck (0.10…1.00)
+OK   Zweiter Stiftstrich
+OK   „↩ Strich“ entfernt nur den letzten Strich
+OK   Stifttaste gedrückt: Stift radiert
+OK   Werkzeug „Radierer“: Stift radiert beim Darüberziehen
+OK   Berührung direkt nach dem Stift wird ignoriert (Handballen)
+OK   Große Kontaktfläche wird ignoriert (Handballen)
+OK   Finger dreht das Modell und zeichnet nicht
+OK   Handballen zuerst, dann Stift: Strich entsteht, Modell bewegt sich nicht
+OK   Navigation nach den Tests wieder frei
 OK   „Striche löschen“ entfernt alle Striche
 Alle Prüfungen bestanden.
 ```
+
+Stift und Finger werden dabei als **echte Eingabeereignisse** über das Chrome-DevTools-Protokoll
+erzeugt: Stift mit `pointerType: "pen"` und Druck, Finger als Touch mit Kontaktradius. Das
+Radiererende des Stifts (`buttons 32`) lässt sich so nicht erzeugen. Es steht deshalb nur in der
+Tablet-Prüfliste.
 
 ### A3. Volltest mit KI (verbraucht Claude-Kontingent, etwa 1 Minute)
 
@@ -91,19 +106,20 @@ Beim ersten Mal den Link mit `?t=…` öffnen, danach merkt sich Firefox den Zug
 
 | # | Aktion | Erwartet | Stand |
 |---|---|---|---|
-| B1 | Mit dem Stift einen Strich ziehen | roter Strich, dicker bei mehr Druck | ✅ zeichnen, Druck ungeprüft |
-| B2 | Beim Zeichnen den Handballen auflegen | Modell dreht sich nicht, kein Fingerstrich | 🟡 |
+| B1 | Mit dem Stift leicht und dann fest zeichnen | Strich wird mit dem Druck sichtbar breiter | ✅ zeichnen, Druck 🟡 (Tablet) |
+| B2 | Beim Zeichnen den Handballen auflegen und bewegen, auch vor dem Aufsetzen des Stifts | Modell dreht sich nicht, kein Fingerstrich | 🟡 (Tablet), ✅ automatisch |
 | B3 | Ein Finger ziehen / zwei Finger spreizen | Modell dreht / zoomt und verschiebt | ✅ |
-| B4 | S-Pen-Taste gedrückt halten und über einen Strich fahren | Strich wird radiert | 🟡 |
-| B5 | Werkzeug „Radierer“, über einen Strich fahren | Strich wird radiert | 🟡 |
+| B4 | S-Pen-Taste gedrückt halten und über einen Strich fahren | Strich wird radiert. Hängt davon ab, ob Firefox die Taste meldet. | 🟡 (Tablet), ✅ automatisch |
+| B5 | Werkzeug „Radierer“, über einen Strich fahren | Strich wird radiert | 🟡 (Tablet), ✅ automatisch |
+| B5a | „↩ Strich“ | nur der letzte Strich verschwindet | ✅ automatisch |
 | B6 | Eine Kante einkreisen, „Rundung 3 mm“ eingeben, Senden | KI rundet genau diese Kante, Ansicht aktualisiert sich | ✅ |
 | B7 | 🎤 antippen, Satz sprechen, 🎤 antippen | Satz steht im Eingabefeld (beim ersten Mal Mikrofon erlauben) | ✅ |
 | B8 | „KI-Runde“ antippen, bestätigen | letzte KI-Änderung ist komplett zurückgenommen | 🟡 |
 | B9 | Undo / Redo | einzelne CAD-Schritte zurück/vor | 🟡 |
 | B10 | „An PC“ | SolidCraft am PC zeigt dieselbe Ansicht | 🟡 |
 | B11 | Speichern | Meldung „Gespeichert: …/Name.sc“, Punkt • neben dem Namen verschwindet | ✅ (automatisch) |
-| B13 | Farbpunkt mit dem Stift antippen, Strich zeichnen | Strich in der gewählten Farbe; Bedeutung erscheint nach der KI-Antwort unter dem Farbpunkt | 🟡 |
 | B12 | Kabel ziehen, wieder einstecken | nach wenigen Sekunden wieder verbunden (Seite neu laden) | 🟡 |
+| B13 | Farbpunkt mit dem Stift antippen, Strich zeichnen | Strich in der gewählten Farbe; Bedeutung erscheint nach der KI-Antwort unter dem Farbpunkt | 🟡 |
 
 Legende: ✅ geprüft · 🟡 noch zu prüfen. Ergebnisse gehören in [STAND.md](../STAND.md).
 

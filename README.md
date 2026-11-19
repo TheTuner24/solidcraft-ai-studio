@@ -24,7 +24,7 @@ Schnittstellen von SolidCraft: den Steuerkanal (`solidcraft --control PORT`) und
 | Modell auf dem Tablet drehen/zoomen, Ansicht aktualisiert sich nach jeder Änderung | ✅ getestet |
 | Spracheingabe (lokal mit Whisper, Text landet im Eingabefeld) | ✅ getestet |
 | Undo/Redo, „KI-Runde zurück“, Speichern ohne Originale zu überschreiben | ✅ / 🟡 teilweise getestet |
-| S Pen: Druck, Handballen ignorieren, Stifttaste radiert | 🟡 implementiert, Prüfung offen |
+| S Pen: Druck → Strichbreite, Handballen-Erkennung, Stifttaste radiert, Stift zeichnet / Finger navigiert | ✅ automatisch getestet (Tablet-Prüfung 🟡) |
 | KI lokal über Ollama (Umschalter) | ⛔ experimentell, mit 8 GB Grafikspeicher nicht brauchbar |
 | Linienfarben: Farbe je Strich, Bedeutung legst du per Sprache/Text fest („grün ist eine Bohrung Ø 4“) | ✅ getestet (Tablet-Bedienung 🟡) |
 | Vektorisierung der Striche, native bemaßte SolidCraft-Skizzen | 📋 geplant |
@@ -57,6 +57,12 @@ Tablet (Firefox)                      PC
   Dateipfade auf den Studio-Ordner begrenzt. Die Systemanweisung steht in `studio/agent.py`.
 - **Sprache:** Das Browser-Mikrofon nimmt auf (MediaRecorder, Opus). Der PC erkennt den Text lokal mit
   faster-whisper (`large-v3-turbo`, Deutsch). Es geht kein Audio ins Internet.
+- **Stift und Finger:**
+  - Nur der Stift (und die linke Maustaste) zeichnet. Finger drehen, zoomen und verschieben.
+  - Ein Handballen wird ignoriert: während der Stift schreibt oder schwebt, bis 600 ms danach und bei
+    großer Kontaktfläche (≥ 40 px).
+  - Setzt der Stift auf, während ein Finger liegt, ist die Navigation bis zum Strichende gesperrt.
+  - Schwellen: `PALM_MS` und `PALM_SIZE` in `web/app.js`.
 - **Farben:** Jeder Strich trägt seine Farbe. Sie ist im Bild sichtbar und steht in den Strichdaten.
   Was eine Farbe bedeutet, sagst du der KI in Worten, fest eingebaute Farbfunktionen gibt es nicht. Die
   KI meldet die Legende zurück, das Studio zeigt sie an der Palette, speichert sie beim Projekt und gibt
@@ -120,7 +126,8 @@ SolidCraft vom Skript gestartet, endet das Studio mit SolidCraft.
 |---|---|
 | Stift | zeichnen und markieren (Druck = Strichbreite) |
 | Farbpunkt in der Leiste | Strichfarbe wählen. Unter dem Punkt steht die Bedeutung, die du der KI genannt hast. |
-| Stifttaste oder Werkzeug „Radierer“ | Striche radieren |
+| Stifttaste gedrückt, Radiererende oder Werkzeug „Radierer“ | Striche radieren |
+| ↩ Strich / ✕ Alle | letzten Strich bzw. alle Striche entfernen |
 | ein Finger | Modell drehen |
 | zwei Finger | zoomen und verschieben |
 | Maus am PC | links zeichnen, rechts drehen, Mitte verschieben, Rad zoomen |

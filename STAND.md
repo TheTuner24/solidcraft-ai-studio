@@ -20,7 +20,8 @@ Galaxy Tab S8+
 
 ## Kurzfassung
 
-- **Linienfarben (Schwerpunkt 1) sind fertig und automatisch getestet** (19.11.2026).
+- **Linienfarben (Schwerpunkt 1) und S-Pen-Bedienung (4) sind fertig und automatisch getestet**
+  (19.11.2026). Die Prüfung auf dem echten Tablet steht noch aus.
 - **Meilenstein 1 ist erreicht.** Skizze und Text auf dem Tablet ergeben ein parametrisches Bauteil
   in SolidCraft. Danach kommen Kante einkreisen, Änderung beschreiben, das bestehende Modell ändern
   und speichern. Der Ablauf ist automatisch getestet und auf dem Tablet benutzt.
@@ -35,7 +36,7 @@ Galaxy Tab S8+
 | 1 | Linienfarben, Bedeutung per Sprache festlegen | ✅ automatisch, Tablet 🟡 | Palette mit 6 Farben (rot, blau, grün, orange, violett, türkis). Jeder Strich speichert seine Farbe, die im Bild und in den Strichdaten (`farbe`) ankommt. Die Bedeutung kommt **nur** aus Text oder Sprache des Benutzers, es gibt keine Farbe mit fester CAD-Funktion. Der Agent meldet die Legende als `<farblegende>{…}</farblegende>`, das Studio blendet die Zeile aus, speichert sie (`<Projekt>.studio/farblegende.json`), zeigt sie an der Palette und gibt sie jeder Runde mit. Getestet: 2 Farben mit 2 Aufgaben in einer Runde (grün = Bohrung Ø 4, violett = Fase 2 mm), Volumen exakt. | Bedienung der Palette mit dem Stift auf dem Tablet prüfen (B13) |
 | 2 | Bild- und vektorbasierte Skizzenverarbeitung | 🟡 teilweise ✅ | Der Agent bekommt **beides**: das Bild der Ansicht mit den Strichen und je Strich Punkte mit 3D-Ankern (Modelltreffer mit Normale, sonst Boden Z=0), geschlossen/offen und Innenabtastung. Die Kantenerkennung über die Punkte ist getestet (Runde 2). | Echte Vektorisierung: Strich in Linien, Bögen und Kreise zerlegen (Fitting), Ecken, Parallelität und Tangenten erkennen. Die 2D-Polylinien werden heute nur gekürzt übertragen. |
 | 3 | Handzeichnung → native, bemaßte CAD-Skizze | 📋 | Der Agent baut aus der Beschreibung parametrische Features (Parameter für Hauptmaße). Er erzeugt dabei nicht zwingend eine SolidCraft-Skizze aus den Strichen. | Erkannte Geometrie als `sketch.*`-Elemente mit Bedingungen und Bemaßungen (`sketch.dimension`, dof 0) anlegen. Maße aus Sprache oder Text zuordnen, handgeschriebene Maße erkennen. |
-| 4 | Zuverlässige S-Pen-Bedienung | 🟡 | Stift zeichnet (Pointer Events `pen`), Druck steuert die Strichbreite. Finger dreht, zwei Finger zoomen und verschieben. Berührungen bis 600 ms nach Stiftkontakt werden ignoriert (Handballen). S-Pen-Taste und Radiererende radieren. Grundbedienung (zeichnen, einkreisen, drehen) hat der Benutzer auf dem Tablet verwendet. | Systematischer Test: Druck, Handballen beim Schreiben, S-Pen-Taste, Hover, schnelle Striche, Zwei-Finger-Geste während Stiftkontakt. Undo für einzelne Striche fehlt. |
+| 4 | Zuverlässige S-Pen-Bedienung | ✅ automatisch (echte Stift-/Touch-Ereignisse über DevTools), Tablet 🟡 | **Druck:** Strichbreite 1–7 px (Wurzelkurve), Druck je Punkt gespeichert. **Stift ↔ Finger:** Nur Stift und linke Maustaste zeichnen, Finger drehen, zoomen und verschieben. **Handballen:** ignoriert während Stiftkontakt, Hover und 600 ms danach, bei Kontaktfläche ≥ 40 px, und bis zum Loslassen. Setzt der Stift auf, während ein Finger liegt, ist die Navigation bis Strichende gesperrt. **Radieren:** Stifttaste (`buttons & 2`), Radiererende (`button 5`/`buttons & 32`), Werkzeug „Radierer“. **Strich-Undo** „↩ Strich“. Behoben: Radieren durch Ziehen ließ die Seite abstürzen. | Auf dem Tablet prüfen (B1–B5): Druckkurve, Schwelle 40 px gegen echte Handballen, S-Pen-Taste in Firefox (das Radiererende hat der S Pen nicht) |
 | 5 | Bidirektionale Sprachkommunikation | 🟡 Eingabe ✅, Ausgabe 📋 | Mikrofon-Knopf → Whisper `large-v3-turbo` lokal auf der GPU → Text ins Eingabefeld → selbst senden. Getestet mit Aufnahmen (4/4 Wörter, ~0,3 s), im Testbrowser mit Mikrofon-Attrappe, vom Benutzer auf dem Tablet. | Antworten vorlesen (lokal, z. B. Piper), Wechselgespräch (Rückfrage → Antwort per Sprache), optional automatisch senden |
 | 6 | Drahtlose Tablet-Anbindung | 📋 | Nur USB (`adb reverse`), der Dienst lauscht auf 127.0.0.1. | HTTPS mit eigener Zertifizierungsstelle (Mikrofon braucht einen sicheren Kontext), Lauschen im LAN, Kopplung per Zugangsschlüssel/QR-Code, Schutz gegen Zugriff von außen |
 | 7 | Vollständige Dokumentation auf GitHub | ✅ (dieser Stand) | README (DE und EN), STAND.md, Auftrag, reproduzierbarer Funktionstest, Projektregeln (CLAUDE.md/AGENTS.md) | wird mit jedem Abschnitt fortgeschrieben |
@@ -82,6 +83,8 @@ Galaxy Tab S8+
 | 19.11.2026 | `tests/funktionstest --smoke` | bestanden (5/5) |
 | 19.11.2026 | `tests/funktionstest --full` (getrennte Test-Instanz) | bestanden (7/7), Volumen exakt |
 | 19.11.2026 | Abschnitt Linienfarben: `--smoke` (11 Prüfungen inkl. Farbe je Strich, Farbe in Daten und Bild) | bestanden |
+| 19.11.2026 | Abschnitt S Pen: `--smoke` mit echten Stift-/Touch-Ereignissen (Druck 0,1–1,0, Stifttaste, Radierer, Strich-Undo, Handballen nach Stift, große Kontaktfläche, Handballen zuerst, Finger dreht) | bestanden (23 Prüfungen) |
+| 19.11.2026 | Abschnitt S Pen: `--full` (3 Läufe) | 2× bestanden, 1× in Runde 2 Strich nach dem Senden sichtbar (siehe bekannte Fehler), KI-Ergebnisse immer exakt |
 | 19.11.2026 | Abschnitt Linienfarben: `--full` mit Runde 3 (zwei Farben, zwei Aufgaben, Legende aus dem Text) | bestanden. Runde 3: 11 621 mm³ (Soll 11 621), Legende `{"grün":"Bohrung Ø 4 durchgehend","violett":"Fase 2 mm"}` |
 
 ### Letzter Volltest
@@ -112,13 +115,16 @@ Alle Prüfungen bestanden.
   (`stt.py::_decode`).
 - Firefox für Android schickt ein `SameSite=Strict`-Cookie nach einem aus einer App geöffneten Redirect
   nicht mit. Deshalb gibt es keinen Redirect, und das Cookie ist `Lax`.
-- Auf den Bildschirmfotos des Volltests sind nach dem Senden manchmal noch Striche zu sehen. Gezielt
-  nachgestellt war die Zeichenebene leer (0 Pixel). Der Volltest prüft das jetzt nach jeder Runde
-  (`overlayPixels`).
+- **Offen, sporadisch:** Nach dem Senden bleibt manchmal ein Strich sichtbar. In 1 von 3 Volltests am
+  19.11. trat das in Runde 2 auf. Gezielt nachgestellt war die Zeichenebene leer. Als Absicherung setzt
+  das Senden jetzt auch einen offenen Strich zurück, und nach jeder Runde wird neu gezeichnet. Der
+  Volltest prüft nach jeder Runde Pixel, Strichzahl und offenen Strich und meldet die Werte, falls
+  der Fehler wieder auftritt.
 
 ## Nächste Schritte (Priorität)
 
-1. **S-Pen-Test** nach Prüfliste ([docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md), Teil B), Fehler beheben, Strich-Undo
+1. **S-Pen-Test auf dem Tablet** nach Prüfliste ([docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md), B1–B5, B13).
+   Gegebenenfalls `PALM_SIZE`/`PALM_MS` in `web/app.js` anpassen.
 3. **Vektorisierung** (2): Striche serverseitig in Linien, Bögen und Kreise zerlegen (z. B.
    Ramer-Douglas-Peucker + Kreis-Fit), mit Bild und 3D-Ankern an den Agenten
 4. **Native bemaßte Skizzen** (3): erkannte Elemente als SolidCraft-Skizze mit Bedingungen, Maße aus

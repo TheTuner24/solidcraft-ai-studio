@@ -48,7 +48,27 @@ async function volume() {
 
 const browser = await chromium.launch({ executablePath: CHROME, headless: !process.env.SICHTBAR,
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const page = await browser.newPage({ viewport: { width: 1400, height: 875 } });
+const context = await browser.newContext({ viewport: { width: 1400, height: 875 }, hasTouch: true });
+const page = await context.newPage();
+const cdp = await context.newCDPSession(page);
+// Echte (vertrauenswürdige) Stift- und Fingerereignisse über das DevTools-Protokoll:
+// Stift = Mausereignis mit pointerType "pen" und Druck (force), Finger = Touch mit Kontaktradius.
+const pen = async (pts, { buttons = 1, button = 'left' } = {}) => {
+  const ev = (type, [x, y, force], extra = {}) => cdp.send('Input.dispatchMouseEvent',
+    { type, x, y, pointerType: 'pen', force, button, buttons, clickCount: 1, ...extra });
+  await ev('mouseMoved', pts[0], { buttons: 0, button: 'none' });            // Schweben
+  await ev('mousePressed', pts[0]);
+  for (const q of pts.slice(1)) await ev('mouseMoved', q);
+  await ev('mouseReleased', pts.at(-1), { buttons: 0 });
+};
+const touch = async (pts, radius = 6) => {
+  const tp = ([x, y]) => [{ x, y, radiusX: radius, radiusY: radius, force: 1, id: 7 }];
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: tp(pts[0]) });
+  for (const q of pts.slice(1)) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: tp(q) });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+};
+const line = (x0, y0, x1, y1, n = 12, f0 = 0.5, f1 = 0.5) =>
+  Array.from({ length: n + 1 }, (_, i) => [x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, f0 + (f1 - f0) * i / n]);
 page.on('pageerror', (e) => ok(false, 'Seitenfehler: ' + e.message));
 page.on('dialog', (d) => (d.type() === 'prompt' ? d.accept('Funktionstest') : d.accept()));
 const state = () => page.evaluate(() => window.studioDebug.state());
@@ -72,8 +92,11 @@ const waitIdle = async () => {
   await page.waitForFunction(() => document.querySelector('#busy').hidden, null, { timeout: 15 * 60 * 1000 });
   await page.waitForTimeout(2500);   // Modell-Export und Nachladen
 };
-const overlayClear = async (t) => ok((await page.evaluate(() => window.studioDebug.overlayPixels())) === 0 && (await state()).strokes === 0,
-  `${t}: Striche nach dem Senden entfernt`);
+const overlayClear = async (t) => {
+  const px = await page.evaluate(() => window.studioDebug.overlayPixels()), st = await state();
+  ok(px === 0 && st.strokes === 0 && !st.current, `${t}: Striche nach dem Senden entfernt` +
+    (px || st.strokes || st.current ? ` (Pixel ${px}, Striche ${st.strokes}, offener Strich ${st.current})` : ''));
+};
 const lastAgentText = () => page.$$eval('#log .msg.agent, #log .msg.error', (e) => e.at(-1)?.textContent || '');
 
 console.log(`Funktionstest (${MODE}) gegen ${URL.replace(/t=[^&]+/, 't=…')}`);
@@ -102,6 +125,59 @@ if (MODE === 'smoke') {
   ok(await page.locator('#palette button').count() === 6, 'Palette mit 6 Farben');
   await page.click('#palette [data-color="rot"]');
   await page.screenshot({ path: path.join(OUT, 'smoke-strich.png') });
+  await page.click('#clear');
+
+  // S Pen: Druck, Radierer, Handballen, Finger navigiert (echte Ereignisse über DevTools)
+  const cam = () => page.evaluate(() => window.studioDebug.camera().join());
+  const cx = box.x + box.width * 0.5, cy = box.y + box.height * 0.5;
+  await pen(line(cx - 150, cy - 100, cx + 150, cy - 100, 20, 0.1, 1.0));
+  s = await state();
+  const pr = s.pressures[0] || [];
+  ok(s.strokes === 1 && Math.max(...pr) - Math.min(...pr) > 0.6, `Stift zeichnet mit Druck (${Math.min(...pr).toFixed(2)}…${Math.max(...pr).toFixed(2)})`);
+  await pen(line(cx - 150, cy - 60, cx + 150, cy - 60, 10));
+  ok((await state()).strokes === 2, 'Zweiter Stiftstrich');
+  await page.click('#undostroke');
+  ok((await state()).strokes === 1, '„↩ Strich“ entfernt nur den letzten Strich');
+  await pen(line(cx, cy - 140, cx, cy - 60, 10), { button: 'right', buttons: 2 });
+  ok((await state()).strokes === 0, 'Stifttaste gedrückt: Stift radiert');
+  await pen(line(cx - 150, cy - 100, cx + 150, cy - 100, 10));
+  // Radiererende des Stifts (buttons 32) lässt sich über DevTools nicht erzeugen: Tablet-Prüfliste B4.
+  await page.click('[data-tool="eraser"]');
+  await pen(line(cx, cy - 140, cx, cy - 60, 10));
+  ok((await state()).strokes === 0, 'Werkzeug „Radierer“: Stift radiert beim Darüberziehen');
+  await page.click('[data-tool="pen"]');
+  let c0 = await cam();
+  await touch(line(cx, cy, cx + 200, cy + 50, 10));            // sofort nach dem Stift: Handballen
+  ok((await cam()) === c0 && (await state()).strokes === 0, 'Berührung direkt nach dem Stift wird ignoriert (Handballen)');
+  await page.waitForTimeout(800);
+  c0 = await cam();
+  await touch(line(cx, cy, cx + 200, cy + 50, 10), 40);        // große Kontaktfläche
+  await page.waitForTimeout(300);
+  ok((await cam()) === c0 && (await state()).strokes === 0, 'Große Kontaktfläche wird ignoriert (Handballen)');
+  c0 = await cam();
+  await touch(line(cx, cy, cx + 200, cy + 50, 10));            // normaler Finger
+  await page.waitForTimeout(500);
+  ok((await cam()) !== c0 && (await state()).strokes === 0, 'Finger dreht das Modell und zeichnet nicht');
+  // Handballen liegt zuerst auf, dann setzt der Stift auf, der Ballen bewegt sich mit
+  await page.waitForTimeout(800);
+  c0 = await cam();
+  const tp = (x, y) => [{ x, y, radiusX: 6, radiusY: 6, force: 1, id: 9 }];
+  const pe = (type, x, y, extra = {}) => cdp.send('Input.dispatchMouseEvent',
+    { type, x, y, pointerType: 'pen', force: 0.6, button: 'left', buttons: 1, clickCount: 1, ...extra });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: tp(cx + 200, cy + 150) });
+  await pe('mousePressed', cx - 100, cy + 100);
+  for (let i = 1; i <= 10; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: tp(cx + 200 + i * 15, cy + 150 + i * 5) });
+    await pe('mouseMoved', cx - 100 + i * 20, cy + 100);
+  }
+  await pe('mouseReleased', cx + 100, cy + 100, { buttons: 0 });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForTimeout(300);
+  ok((await cam()) === c0 && (await state()).strokes === 1, 'Handballen zuerst, dann Stift: Strich entsteht, Modell bewegt sich nicht');
+  await page.click('#clear');
+  const inp = await page.evaluate(() => window.studioDebug.input());
+  ok(inp.controls && inp.ignoredTouches === 0, 'Navigation nach den Tests wieder frei');
+  await page.click('#fit');
   await page.click('#clear');
   s = await state();
   ok(s.strokes === 0, '„Striche löschen“ entfernt alle Striche');

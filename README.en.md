@@ -25,7 +25,7 @@ updates can be taken without merging.
 | Rotate/zoom the model on the tablet, view refreshes after every change | ✅ tested |
 | Voice input (local Whisper, recognised text goes into the input box) | ✅ tested |
 | Undo/redo, "revert AI turn", saving without overwriting originals | ✅ / 🟡 partly tested |
-| S Pen: pressure, palm rejection, pen button erases | 🟡 implemented, verification pending |
+| S Pen: pressure → line width, palm rejection, pen button erases, pen draws / finger navigates | ✅ tested automatically (tablet check 🟡) |
 | Local AI via Ollama (toggle) | ⛔ experimental, not usable with 8 GB VRAM |
 | Line colours: colour per stroke, you define the meaning by voice/text ("green is a Ø 4 hole") | ✅ tested (tablet use 🟡) |
 | Stroke vectorisation, native dimensioned SolidCraft sketches | 📋 planned |
@@ -58,6 +58,12 @@ Tablet (Firefox)                      PC
   limited to the studio folder. The system prompt is in `studio/agent.py`.
 - **Voice:** The browser microphone records (MediaRecorder, Opus). The PC transcribes locally with
   faster-whisper (`large-v3-turbo`, German). No audio goes to the internet.
+- **Pen and fingers:**
+  - Only the pen (and the left mouse button) draws. Fingers rotate, zoom and pan.
+  - A palm is ignored: while the pen writes or hovers, for 600 ms after that, and when the contact is
+    large (≥ 40 px).
+  - If the pen touches down while a finger is on the screen, navigation is blocked until the stroke ends.
+  - Thresholds: `PALM_MS` and `PALM_SIZE` in `web/app.js`.
 - **Colours:** Every stroke keeps its colour. It is visible in the picture and included in the stroke
   data. You tell the AI in words what a colour means, there are no built-in colour functions. The AI
   reports the legend back, the studio shows it on the palette, saves it with the project and passes it
@@ -117,7 +123,8 @@ sed "s#@DIR@#$PWD#" packaging/solidcraft-ai-studio.desktop.in > ~/.local/share/a
 |---|---|
 | pen | draw and mark (pressure = line width) |
 | colour dot in the toolbar | choose the stroke colour. The meaning you gave the AI is shown below it. |
-| pen button or "Radierer" tool | erase strokes |
+| pen button held, eraser end or "Radierer" tool | erase strokes |
+| ↩ Strich / ✕ Alle | remove the last stroke / all strokes |
 | one finger | rotate the model |
 | two fingers | zoom and pan |
 | mouse on the PC | left draws, right rotates, middle pans, wheel zooms |

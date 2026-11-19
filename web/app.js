@@ -194,7 +194,7 @@ function reanchorStrokes() {
 
 function drawStrokes() {
   octx.clearRect(0, 0, overlay.width, overlay.height);
-  for (const s of [...strokes, current].filter(Boolean)) {
+  for (const s of [...strokes, current].filter((s) => s && !s.erase)) {
     const pts = s.anchors && s.cam !== lastCamKeyAtDraw() ? s.anchors.map((a) => project(a.p)) : s.pts;
     if (pts.length < 1) continue;
     const hex = (s.color || COLORS[0]).hex;
@@ -202,8 +202,7 @@ function drawStrokes() {
     octx.globalAlpha = s === current ? 0.8 : 1;
     octx.lineCap = 'round'; octx.lineJoin = 'round';
     for (let i = 1; i < pts.length; i++) {
-      const pr = s.pr[i] ?? 0.5;
-      octx.lineWidth = 1.5 + pr * 4;
+      octx.lineWidth = widthFor(s.pr[i] ?? 0.5);
       octx.beginPath(); octx.moveTo(pts[i - 1][0], pts[i - 1][1]); octx.lineTo(pts[i][0], pts[i][1]); octx.stroke();
     }
     if (pts.length === 1) { octx.fillStyle = hex; octx.beginPath(); octx.arc(pts[0][0], pts[0][1], 3, 0, 7); octx.fill(); }
@@ -212,6 +211,8 @@ function drawStrokes() {
   updateMarkInfo();
 }
 function lastCamKeyAtDraw() { return lastCamKey; }
+// Druck 0…1 → Strichbreite in px: leicht 1 px, fest 7 px (Wurzel, damit leichte Striche sichtbar bleiben).
+const widthFor = (pr) => 1 + 6 * Math.sqrt(Math.min(1, Math.max(0, pr)));
 
 function finishStroke(s) {
   if (s.pts.length < 2) s.pts.push([s.pts[0][0] + 0.5, s.pts[0][1] + 0.5]);
@@ -257,46 +258,73 @@ function local(e) {
   const r = viewport.getBoundingClientRect();
   return [e.clientX - r.left, e.clientY - r.top];
 }
-const isEraserButton = (e) => (e.buttons & 32) || (e.buttons & 2) || tool === 'eraser';
+// ---------- Eingabe: Stift zeichnet, Finger navigiert ----------
+// Stift (pointerType "pen") und linke Maustaste zeichnen, Finger ("touch") drehen und zoomen über
+// OrbitControls. Handballen-Erkennung:
+//  1. Solange der Stift zeichnet, schwebt (Hover) oder vor < PALM_MS aktiv war, zählt keine Berührung.
+//  2. Berührungen mit großer Kontaktfläche (width/height ≥ PALM_SIZE px) sind ein Handballen.
+//  3. Eine ignorierte Berührung bleibt bis zum Loslassen ignoriert.
+//  4. Setzt der Stift auf, während schon Finger liegen, ist die Navigation bis zum Strichende gesperrt.
+// Radieren: Werkzeug „Radierer“, Radiererende des Stifts (button 5 / buttons & 32) oder Stifttaste
+// (buttons & 2), soweit der Browser sie meldet.
+const PALM_MS = 600, PALM_SIZE = 40;
+const ignoredTouches = new Set();
+let penSeen = false;
+const isEraser = (e) => tool === 'eraser' ||
+  (e.pointerType === 'pen' && (e.button === 5 || (e.buttons & 32) || (e.buttons & 2)));
+const pressureOf = (e) => (e.pointerType === 'pen' ? (e.pressure > 0 ? e.pressure : 0.5) : 0.5);
+const isPalm = (e) => current?.pen || performance.now() - lastPen < PALM_MS ||
+  Math.max(e.width || 0, e.height || 0) >= PALM_SIZE;
 
-// Stift (und linke Maustaste) zeichnet; Finger drehen das Modell. Handballen werden
-// ignoriert, solange der Stift aktiv ist.
 viewport.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'touch') {
+    if (isPalm(e)) { ignoredTouches.add(e.pointerId); e.stopPropagation(); }
+    return;   // sonst: OrbitControls dreht/zoomt
+  }
   const draws = e.pointerType === 'pen' || (e.pointerType === 'mouse' && e.button === 0);
-  if (e.pointerType === 'touch' && performance.now() - lastPen < 600) { e.stopPropagation(); return; }
   if (!draws) return;
   e.stopPropagation(); e.preventDefault();
-  if (e.pointerType === 'pen') lastPen = performance.now();
-  viewport.setPointerCapture(e.pointerId);
+  if (e.pointerType === 'pen') { lastPen = performance.now(); penSeen = true; }
+  controls.enabled = false;   // laufende Fingergesten (z. B. Handballen zuerst) anhalten
+  try { viewport.setPointerCapture(e.pointerId); } catch { /* synthetische Ereignisse */ }
   const [x, y] = local(e);
-  if (isEraserButton(e)) { current = { erase: true, id: e.pointerId }; eraseAt(x, y); return; }
-  current = { id: e.pointerId, pts: [[x, y]], pr: [e.pressure || 0.5], color };
+  if (isEraser(e)) { current = { erase: true, id: e.pointerId, pen: e.pointerType === 'pen' }; eraseAt(x, y); return; }
+  current = { id: e.pointerId, pts: [[x, y]], pr: [pressureOf(e)], color, pen: e.pointerType === 'pen' };
   drawStrokes();
 }, true);
 viewport.addEventListener('pointermove', (e) => {
-  if (e.pointerType === 'pen') lastPen = performance.now();
-  if (e.pointerType === 'touch' && performance.now() - lastPen < 600) { e.stopPropagation(); return; }
+  if (e.pointerType === 'pen') lastPen = performance.now();   // auch beim Schweben
+  if (e.pointerType === 'touch') {
+    if (ignoredTouches.has(e.pointerId) || isPalm(e)) { ignoredTouches.add(e.pointerId); e.stopPropagation(); }
+    return;
+  }
   if (!current || current.id !== e.pointerId) return;
   e.stopPropagation();
-  const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
-  for (const ce of events) {
+  const coalesced = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+  for (const ce of coalesced.length ? coalesced : [e]) {
     const [x, y] = local(ce);
     if (current.erase) { eraseAt(x, y); continue; }
     const last = current.pts[current.pts.length - 1];
     if (Math.hypot(x - last[0], y - last[1]) < 2) continue;
-    current.pts.push([x, y]); current.pr.push(ce.pressure || 0.5);
+    current.pts.push([x, y]); current.pr.push(pressureOf(ce));
   }
   drawStrokes();
 }, true);
-const endStroke = (e) => {
+const endPointer = (e) => {
+  if (e.pointerType === 'touch') {
+    if (ignoredTouches.delete(e.pointerId)) e.stopPropagation();
+    return;
+  }
   if (!current || current.id !== e.pointerId) return;
   e.stopPropagation();
+  if (e.pointerType === 'pen') lastPen = performance.now();
   if (!current.erase) finishStroke(current);
   current = null;
+  controls.enabled = true;
   drawStrokes();
 };
-viewport.addEventListener('pointerup', endStroke, true);
-viewport.addEventListener('pointercancel', endStroke, true);
+viewport.addEventListener('pointerup', endPointer, true);
+viewport.addEventListener('pointercancel', endPointer, true);
 
 function updateMarkInfo() {
   const n = strokes.length;
@@ -370,7 +398,7 @@ function handle(m) {
     case 'agent':
       if (m.kind === 'user' && pendingLocalUser) { pendingLocalUser = false; break; }
       agentMsg(m); break;
-    case 'busy': setBusy(m.busy); break;
+    case 'busy': setBusy(m.busy); if (!m.busy) drawStrokes(); break;
     case 'status': if (m.solidcraft === false) toast('SolidCraft nicht erreichbar: ' + m.text); break;
     case 'saved': toast('Gespeichert: ' + m.path); break;
     case 'error': toast(m.text); break;
@@ -434,7 +462,7 @@ $('#composer').addEventListener('submit', (e) => {
   agentMsg({ kind: 'user', text, marks: strokes.length, image: strokes.length ? image : null });
   pendingLocalUser = true;
   $('#text').value = '';
-  strokes = []; drawStrokes();
+  strokes = []; current = null; controls.enabled = true; drawStrokes();
 });
 // ---------- Sprache: antippen, sprechen, antippen; der Text landet im Eingabefeld ----------
 let recorder = null;
@@ -500,6 +528,7 @@ document.querySelectorAll('[data-tool]').forEach((b) => b.addEventListener('clic
   document.querySelectorAll('[data-tool]').forEach((x) => x.classList.toggle('active', x === b));
 }));
 $('#clear').onclick = () => { strokes = []; drawStrokes(); };
+$('#undostroke').onclick = () => { strokes.pop(); drawStrokes(); };
 $('#undo').onclick = () => send({ type: 'undo' });
 $('#redo').onclick = () => send({ type: 'redo' });
 $('#revert').onclick = () => { if (confirm('Letzte KI-Runde komplett zurücknehmen?')) send({ type: 'revert_turn' }); };
@@ -546,6 +575,8 @@ function toast(text) {
 window.studioDebug = { worldToScreen: (x, y, z) => project(new THREE.Vector3(x, y, z)), state: () => ({ strokes: strokes.length, current: !!current, tool, color: color.name, legend,
     strokeColors: strokes.map((s) => s.color.name), pressures: strokes.map((s) => s.pr) }),
   marks: () => marksPayload(),
+  camera: () => camera.position.toArray().map((v) => +v.toFixed(3)),
+  input: () => ({ penSeen, ignoredTouches: ignoredTouches.size, controls: controls.enabled }),
   overlayPixels: () => {
     const d = octx.getImageData(0, 0, overlay.width, overlay.height).data;
     let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++;
