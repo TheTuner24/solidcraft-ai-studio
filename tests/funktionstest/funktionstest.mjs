@@ -13,12 +13,13 @@ import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const MODE = process.argv.includes('--full') ? 'full' : 'smoke';
 const CACHE = path.join(os.homedir(), 'CAD/ai-studio/.cache');
 const URL = process.env.STUDIO_URL || fs.readFileSync(path.join(CACHE, 'studio-url.txt'), 'utf8').trim();
 const CONTROL_PORT = Number(process.env.CONTROL_PORT || 7979);
-const HERE = path.dirname(new URL(import.meta.url).pathname);
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, 'ergebnis');
 fs.mkdirSync(OUT, { recursive: true });
 const CHROME = process.env.CHROME || ['/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser',
