@@ -274,6 +274,17 @@ if (MODE === 'smoke') {
   await page.click('#clear');
   s = await state();
   ok(s.strokes === 0, '„Striche löschen“ entfernt alle Striche');
+
+  // Foto: 📷 öffnet die Kamera (hier: Datei direkt setzen), Vorschau erscheint, ✕ entfernt es.
+  const foto = path.join(HERE, 'testdaten/sechskant.jpg');
+  ok(!!(await page.getAttribute('#photoinput', 'capture')), '📷 öffnet die Kamera (capture)');
+  await page.setInputFiles('#photoinput', foto);
+  await page.waitForFunction(() => window.studioDebug.photos() === 1, null, { timeout: 5000 }).catch(() => {});
+  ok(await page.evaluate(() => window.studioDebug.photos()) === 1 && await page.isVisible('#photos img'), 'Foto angehängt, Vorschau sichtbar');
+  const dim = await page.evaluate(() => new Promise((r) => { const i = new Image(); i.onload = () => r([i.width, i.height]); i.src = document.querySelector('#photos img').src; }));
+  ok(Math.max(...dim) <= 1568, `Foto verkleinert (${dim.join(' × ')})`);
+  await page.click('#photos .ph button');
+  ok(await page.evaluate(() => window.studioDebug.photos()) === 0 && !(await page.isVisible('#photos')), '✕ entfernt das Foto');
 } else {
   // Neu und Speichern passieren am PC in SolidCraft, das Tablet folgt.
   await control('engine.execute', { command: 'file.new', params: { name: 'Funktionstest' } });
@@ -336,6 +347,23 @@ if (MODE === 'smoke') {
   ok(fs.existsSync(target) && /^Funktionstest\.sc/.test(name), `Am PC gespeichert, Tablet zeigt „${name}“`);
   const runden = fs.existsSync(target.replace(/\.sc$/, '.studio')) ? fs.readdirSync(target.replace(/\.sc$/, '.studio')).filter((f) => f.endsWith('.json') && f.startsWith('runde-')).length : 0;
   ok(runden === 3, `Rundenprotokolle zur gespeicherten Datei übernommen (${runden} von 3)`);
+
+  // Runde 4: nur Foto + Maße. Die Form (Sechskant mit Bohrung) steht nicht im Text, nur auf dem Foto.
+  await control('engine.execute', { command: 'file.new', params: { name: 'Fototest' } });
+  await page.waitForTimeout(4500);
+  await page.setInputFiles('#photoinput', path.join(HERE, 'testdaten/sechskant.jpg'));
+  await page.waitForFunction(() => window.studioDebug.photos() === 1, null, { timeout: 5000 });
+  await page.fill('#text', 'Mach mir genau so ein Teil wie auf dem Foto. Über die Ecken gemessen 30 Millimeter, 20 Millimeter hoch, ' +
+    'Unterseite auf Z = 0, mittig um den Ursprung. Das Loch in der Mitte hat 8 Millimeter Durchmesser und geht ganz durch.');
+  await page.click('#send'); await waitIdle();
+  const v4 = await volume();
+  const soll4 = (3 * Math.sqrt(3) / 2 * 15 * 15 - Math.PI * 16) * 20;   // Sechseck R 15 minus Ø 8, 20 hoch
+  ok(Math.abs(v4 - soll4) / soll4 < 0.02, `Runde 4 (Foto): Sechskant mit Bohrung erkannt, Volumen ${Math.round(v4)} mm³ (Soll ${Math.round(soll4)})`);
+  console.log('     KI: ' + (await lastAgentText()).slice(0, 200));
+  const sess = path.join(projekte, 'sitzungen');
+  const fotos = fs.existsSync(sess) ? fs.readdirSync(sess).flatMap((d) => fs.readdirSync(path.join(sess, d)).filter((f) => /-foto-1\.jpeg$/.test(f))) : [];
+  ok(fotos.length > 0, 'Foto im Rundenprotokoll abgelegt');
+  await page.screenshot({ path: path.join(OUT, 'full-4-foto.png') });
 }
 
 await browser.close();

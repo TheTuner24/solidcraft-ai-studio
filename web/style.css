@@ -57,6 +57,16 @@ main { flex: 1; display: flex; min-height: 0; }
   border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
 .row { display: flex; align-items: center; gap: 8px; }
 #markinfo { flex: 1; font-size: 13px; color: var(--muted); }
+#photo { width: 56px; height: 48px; font-size: 22px; border-radius: 24px; border: 1px solid var(--line);
+  background: var(--panel2); color: var(--text); }
+#photos { display: flex; gap: 6px; flex-wrap: wrap; }
+#photos[hidden] { display: none; }
+#photos .ph { position: relative; }
+#photos img { height: 64px; border-radius: 6px; display: block; }
+#photos .ph button { position: absolute; top: -6px; right: -6px; width: 24px; height: 24px; border-radius: 12px;
+  border: 0; background: #000c; color: #fff; font-size: 13px; line-height: 24px; padding: 0; }
+.msg.user .fotos { display: flex; gap: 4px; margin-top: 4px; }
+.msg.user .fotos img { height: 48px; border-radius: 4px; }
 #mic { width: 56px; height: 48px; font-size: 22px; border-radius: 24px; border: 1px solid var(--line);
   background: var(--panel2); color: var(--text); flex: none; }
 #mic.rec { background: #b3261e; border-color: #ff6b6b; animation: pulse 1.2s ease-in-out infinite; }

@@ -30,6 +30,7 @@ Schnittstellen von SolidCraft: den Steuerkanal (`solidcraft --control PORT`) und
 | S Pen: Druck → Strichbreite, Handballen-Erkennung, Stifttaste radiert, Stift zeichnet / Finger navigiert | ✅ automatisch getestet (Tablet-Prüfung 🟡) |
 | KI lokal über Ollama (Umschalter) | ⛔ experimentell, mit 8 GB Grafikspeicher nicht brauchbar |
 | Linienfarben: Farbe je Strich, Bedeutung legst du per Sprache/Text fest („grün ist eine Bohrung Ø 4“) | ✅ getestet (Tablet-Bedienung 🟡) |
+| Foto mit der Tablet-Kamera (📷): zeigt der KI ein Vorbild oder das gemeinte Teil, Form kommt aus dem Foto, Maße aus dem Text | ✅ automatisch getestet (Tablet-Kamera 🟡) |
 | Vektorisierung der Striche, native bemaßte SolidCraft-Skizzen | 📋 geplant |
 | Drahtlos über WLAN (ohne USB) | 📋 geplant |
 
@@ -149,6 +150,7 @@ SolidCraft vom Skript gestartet, endet das Studio mit SolidCraft.
 | ein Finger | Modell drehen |
 | zwei Finger | zoomen und verschieben |
 | Maus am PC | links zeichnen, rechts drehen, Mitte verschieben, Rad zoomen |
+| 📷 | Foto aufnehmen (bis 4 je Nachricht). Es geht mit Text und Skizze an die KI. Beschreib dazu die Maße. ✕ an der Vorschau entfernt es. |
 | 🎤 antippen – sprechen – antippen | erkannter Text kommt ins Eingabefeld, prüfen, dann senden. Während des Vorlesens: Vorlesen stoppt, Aufnahme beginnt. |
 | 🔊 / 🔇 | Vorlesen an/aus |
 | 👂 | nach einer Rückfrage automatisch zuhören an/aus |

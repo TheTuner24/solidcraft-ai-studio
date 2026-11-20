@@ -5,7 +5,7 @@
 > Die Anforderungen stehen in [docs/AUFTRAG.md](docs/AUFTRAG.md), der Funktionstest in
 > [docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md).
 
-**Letzte Aktualisierung:** 20.11.2026 · **Version:** 0.3.0 · **Getestet mit:** SolidCraft 0.45.0 (vorher 0.44.1),
+**Letzte Aktualisierung:** 20.11.2026 · **Version:** 0.4.0 · **Getestet mit:** SolidCraft 0.45.0 (vorher 0.44.1),
 Claude Code 2.1.x, Firefox für Android, Chrome (Testautomatik), Linux (CachyOS), RTX 4060 8 GB,
 Galaxy Tab S8+
 
@@ -49,7 +49,7 @@ Galaxy Tab S8+
 | A: Freihand zeichnen | ✅ | |
 | A: Maße und Beschriftungen ergänzen | 🟡 | nur als Bild (handschriftlich) bzw. per Text/Sprache. Keine Handschrifterkennung, keine Bemaßungsobjekte |
 | A: Vorhandene Zeichnungen öffnen | ✅ | **Am PC in SolidCraft** (jeder Ort, auch NAS). Das Tablet folgt der offenen Datei und bringt deren letzte Skizze mit. Öffnen, Neu und Speichern gibt es auf dem Tablet nicht mehr (Wunsch des Benutzers 20.11.: „alles andere ist verwirrend“). |
-| A: Fotos von Papierskizzen importieren | 📋 | |
+| A: Fotos importieren | ✅ automatisch, Tablet 🟡 | 📷 öffnet die Tablet-Kamera, bis 4 Fotos je Nachricht. Sie werden auf dem Tablet verkleinert (1568 px), gehen mit Text und Skizze an die KI und liegen im Rundenprotokoll (`runde-NNN-foto-K.jpeg`). Agent-Regel: Form aus dem Foto, Maße aus dem Text, erst sagen, was er erkennt. Test: Sechskant mit Bohrung nur aus dem Foto, Volumen exakt. Auf dem Tablet noch nicht ausprobiert (Wunsch des Benutzers vom 20.11.). |
 | A: Weiterarbeiten nach Neustart | ✅ | Beim Öffnen eines Projekts kommt die letzte Skizze zurück: mit Strichen, Farben, Druck und Blickwinkel. Ist die Runde neuer als die gespeicherte Datei, kommt sie samt Text direkt auf die Zeichenebene, sonst liegt sie unter „⤺ Skizze“ bereit. Ältere Runden ohne vollständige Striche werden aus den 3D-Punkten nachgebildet. Test A4, am Tablet noch nicht bedient. |
 | A: Korrigieren und löschen | ✅ | Radierer, „↩ Strich“, „✕ Alle“. „⤺ Skizze“ holt eine gesendete Skizze zum Korrigieren zurück, „KI-Runde“ nimmt die Änderung zurück und bringt die Skizze wieder (Wunsch aus dem Tablet-Test 20.11.). |
 | B: Skizze und Sprache gemeinsam interpretieren | ✅ | Bild, Striche und Text in einer Runde |
@@ -92,6 +92,7 @@ Galaxy Tab S8+
 | 20.11.2026 | Update auf SolidCraft 0.45.0: `--smoke`, `skizze_laden.mjs`, `--full` (Test-Instanz), Projekt aus 0.44.1 öffnen | bestanden (Volltest 3 Runden exakt). Ein mit 0.44.1 gespeichertes Projekt öffnet samt Skizze. |
 | 20.11.2026 | Öffnen/Speichern am PC, Tablet folgt; Skizzen auf dem Tablet: `--smoke`, `skizze_laden.mjs`, `--full` (Test-Instanz mit eigenem HOME) | bestanden. Volltest: Neu und Speichern über SolidCraft, 3 Runden exakt, Runden wandern zur gespeicherten Datei. Skizzen: Kopie eines echten Bauteils mit 4 Skizzen, 18 Linien auf dem Tablet (Bild geprüft). |
 | 20.11.2026 | Striche haften an Skizzen (Fehler vom Tablet: „Linie nach dem Drehen nicht mehr dort, wo ich gezeichnet habe“): `skizze_laden.mjs` Teil 4, `--smoke`, `--full` | bestanden. Strich auf senkrechter Skizze ohne Körper: Abweichung nach dem Drehen 0,00 px. Mit einer Kopie des echten Bauteils: 1,6 px. |
+| 20.11.2026 | Foto mit Tablet-Kamera: `--smoke` (4 Foto-Prüfungen), `--full` Runde 4, `skizze_laden.mjs` | bestanden. Runde 4: Sechskant mit Bohrung nur aus dem Foto erkannt, 10 686 mm³ (Soll 10 686). KI: „Auf dem Foto sehe ich ein sechseckiges Prisma … mit einem durchgehenden Loch in der Mitte“. |
 | 20.11.2026 | **Praxistest auf dem Galaxy Tab S8+ durch den Benutzer** | Druck ✅, Handballen ✅, Drehen/Zoomen ✅, mehrere Farben mit verschiedenen Anweisungen ✅, Sprachausgabe ✅, **Radieren mit S-Pen-Taste ❌** (radiert nicht). Rest der Prüfliste noch offen. |
 | 19.11.2026 | Abschnitt Sprache: `--full` (4 Läufe) | Ergebnisse der KI immer exakt, Antwort wird vorgelesen. Strichfehler in Runde 2 in 3 Läufen, nach der Umstellung auf die CPU-Leinwand 2/2 bestanden |
 | 19.11.2026 | Abschnitt Linienfarben: `--full` mit Runde 3 (zwei Farben, zwei Aufgaben, Legende aus dem Text) | bestanden. Runde 3: 11 621 mm³ (Soll 11 621), Legende `{"grün":"Bohrung Ø 4 durchgehend","violett":"Fase 2 mm"}` |
@@ -155,7 +156,7 @@ Alle Prüfungen bestanden.
    Sprache und Text, dof 0 prüfen. Die Skizze ist danach in SolidCraft bearbeitbar.
 4. **Sprache auf dem Tablet prüfen** (B14–B17), gegebenenfalls Lautstärkeschwelle (0,015) und Pause (1,2 s) in `watchSilence` anpassen
 5. **WLAN-Betrieb** (6): HTTPS, LAN-Bindung nur nach Opt-in, Kopplung per QR-Code
-6. Fotoimport von Papierskizzen, Antwort-Knöpfe für Rückfragen, Hervorhebung vor Änderungen
+6. Antwort-Knöpfe für Rückfragen, Hervorhebung vor Änderungen
 
 ## Für die nächste Sitzung
 

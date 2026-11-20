@@ -31,6 +31,7 @@ updates can be taken without merging.
 | S Pen: pressure → line width, palm rejection, pen button erases, pen draws / finger navigates | ✅ tested automatically (tablet check 🟡) |
 | Local AI via Ollama (toggle) | ⛔ experimental, not usable with 8 GB VRAM |
 | Line colours: colour per stroke, you define the meaning by voice/text ("green is a Ø 4 hole") | ✅ tested (tablet use 🟡) |
+| Photo with the tablet camera (📷): shows the AI a model or the part you mean; shape from the photo, sizes from the text | ✅ automatically tested (tablet camera 🟡) |
 | Stroke vectorisation, native dimensioned SolidCraft sketches | 📋 planned |
 | Wireless over Wi-Fi (no USB) | 📋 planned |
 
@@ -145,6 +146,7 @@ studio: only the studio starts SolidCraft with the control channel and the table
 | one finger | rotate the model |
 | two fingers | zoom and pan |
 | mouse on the PC | left draws, right rotates, middle pans, wheel zooms |
+| 📷 | take a photo (up to 4 per message). It goes to the AI with text and sketch; give the sizes in words. ✕ on the preview removes it. |
 | 🎤 tap – speak – tap | recognised text goes into the input box, check it, then send. While reading aloud: stops the voice and starts recording. |
 | 🔊 / 🔇 | read answers aloud on/off |
 | 👂 | listen automatically after a question on/off |

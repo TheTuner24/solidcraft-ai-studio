@@ -24,6 +24,7 @@ log = logging.getLogger("studio")
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
+MAX_PHOTOS = 4
 
 
 class Studio:
@@ -308,13 +309,28 @@ class Studio:
     async def prompt(self, data: dict) -> None:
         text = (data.get("text") or "").strip()
         image = data.get("image")
-        if not text and not image:
+        photos = [p for p in (data.get("photos") or []) if isinstance(p, str)][:MAX_PHOTOS]
+        if not text and not image and not photos:
             return
         turn_dir = self._turn_dir()
         # Fortlaufend je Ordner zählen: Nach einem Neustart des Studios dürfen alte Runden nicht
         # überschrieben werden.
         self.turn_no = max([self.turn_no, *self._turn_numbers(turn_dir)]) + 1
         content: list[dict] = []
+        # Fotos vom Tablet (Kamera): ein echtes Teil oder eine Vorlage, die zeigt, was gemeint ist.
+        for k, photo in enumerate(photos, 1):
+            m = re.match(r"data:image/(png|jpeg);base64,(.+)", photo, re.S)
+            if not m:
+                raise ValueError("Foto nicht lesbar")
+            raw = base64.b64decode(m.group(2))
+            if len(raw) > MAX_IMAGE_BYTES:
+                raise ValueError("Foto zu groß")
+            (turn_dir / f"runde-{self.turn_no:03d}-foto-{k}.{m.group(1)}").write_bytes(raw)
+            content.append({"type": "text", "text": f"Foto {k} vom Benutzer (Kamera, zeigt ein Vorbild bzw. das gemeinte Teil):"})
+            content.append({"type": "image", "source": {
+                "type": "base64", "media_type": f"image/{m.group(1)}", "data": m.group(2)}})
+        if photos and image:
+            content.append({"type": "text", "text": "Tablet-Ansicht mit den Stiftstrichen:"})
         if image:
             m = re.match(r"data:image/(png|jpeg);base64,(.+)", image, re.S)
             if not m:
@@ -330,6 +346,7 @@ class Studio:
             "markierungen": data.get("marks") or [],
             "farben_in_dieser_runde": sorted({m.get("farbe") for m in data.get("marks") or [] if m.get("farbe")}),
             "farblegende_bisher": self.legend,
+            "fotos": len(photos),
             "hinweis": ("Bild: Tablet-Ansicht mit den farbigen Stiftstrichen des Benutzers. "
                         "Markierungen: pro Strich Farbe und 3D-Treffer (Welt-mm, Z oben). auf=modell: Körperfläche "
                         "(body = Körper); auf=skizze: genau auf einer Skizzenlinie, auf=skizzenebene: in der Ebene "
@@ -353,7 +370,7 @@ class Studio:
             self.turn_checkpoints = self.turn_checkpoints[-15:]
         except ControlError as e:
             log.warning("Checkpoint fehlgeschlagen: %s", e)
-        user_msg = {"type": "agent", "kind": "user", "text": text, "marks": len(context["markierungen"])}
+        user_msg = {"type": "agent", "kind": "user", "text": text, "marks": len(context["markierungen"]), "photos": len(photos)}
         self.log_lines.append(user_msg)
         await self.broadcast(user_msg)
         await self.agent.send(content)
@@ -533,7 +550,7 @@ class Studio:
                                                "Content-Type": "model/gltf-binary"})
 
     async def websocket(self, request: web.Request) -> web.WebSocketResponse:
-        ws = web.WebSocketResponse(heartbeat=20, max_msg_size=MAX_IMAGE_BYTES * 2)
+        ws = web.WebSocketResponse(heartbeat=20, max_msg_size=MAX_IMAGE_BYTES * (MAX_PHOTOS + 2))
         await ws.prepare(request)
         self.clients.add(ws)
         await ws.send_json({"type": "hello", "busy": self.agent.busy, "log": self.log_lines})

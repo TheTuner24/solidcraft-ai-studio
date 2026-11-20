@@ -49,7 +49,10 @@
     <div id="log" aria-live="polite"></div>
     <form id="composer">
       <textarea id="text" rows="3" placeholder="Beschreibe, was entstehen oder sich ändern soll…"></textarea>
+      <div id="photos" hidden></div>
+      <input type="file" id="photoinput" accept="image/*" capture="environment" hidden>
       <div class="row">
+        <button type="button" id="photo" title="Foto aufnehmen: zeigt der KI ein Vorbild oder das gemeinte Teil">📷</button>
         <button type="button" id="mic" title="Sprechen: antippen, sprechen, nochmal antippen (beendet auch das Vorlesen)">🎤</button>
         <button type="button" id="say" class="voice" hidden>🔊</button>
         <button type="button" id="listen" class="voice" hidden>👂</button>

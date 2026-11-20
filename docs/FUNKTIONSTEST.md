@@ -119,6 +119,12 @@ Ablauf:
 9. Nach jeder Runde: Die Zeichenebene ist leer.
 10. Am PC speichern (über den Steuerkanal, `PROJEKTE` = Projektordner der Test-Instanz): Das Tablet zeigt
     `Funktionstest.sc`, die 3 Runden liegen in `Funktionstest.studio/`
+11. Runde 4 (Foto): neues Bauteil, Foto `testdaten/sechskant.jpg` (Sechskant mit Bohrung) anhängen, Text nur
+    mit Maßen ohne Form („30 mm über die Ecken, 20 mm hoch, Loch Ø 8 durch“). **Prüfung:** Volumen
+    ≈ 10 686 mm³ (±2 %). Die Form kann die KI nur vom Foto haben. Das Foto liegt im Rundenprotokoll.
+
+Der Smoke-Test prüft dazu ohne KI: 📷 öffnet die Kamera (`capture`), Foto angehängt und verkleinert,
+✕ entfernt es.
 
 Die Prüfung misst das Volumen der echten Geometrie in SolidCraft, sie verlässt sich nicht auf die
 Antwort der KI. Bilder der Ansicht landen in `tests/funktionstest/ergebnis/`. `SICHTBAR=1` zeigt

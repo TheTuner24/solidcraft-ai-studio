@@ -498,7 +498,7 @@ function handle(m) {
     case 'caps': caps = { stt: m.stt, tts: m.tts }; updateVoiceUi(); break;
     case 'status': if (m.solidcraft === false) toast('SolidCraft nicht erreichbar: ' + m.text); break;
     case 'error': toast(m.text); break;
-    case 'reset': if (autoText && $('#text').value === autoText) $('#text').value = ''; autoText = null; $('#log').innerHTML = ''; firstModel = true; strokes = []; lastSent = null; $('#restore').disabled = true; drawStrokes(); break;
+    case 'reset': photos = []; renderPhotos(); if (autoText && $('#text').value === autoText) $('#text').value = ''; autoText = null; $('#log').innerHTML = ''; firstModel = true; strokes = []; lastSent = null; $('#restore').disabled = true; drawStrokes(); break;
     case 'last_sketch':
       // Erst anwenden, wenn das Modell geladen ist (sonst setzt die erste Ansicht die Kamera zurück).
       if (modelRoot && !firstModel) applyLastSketch(m); else pendingSketch = m;
@@ -522,6 +522,11 @@ function agentMsg(m) {
     div.className = 'msg user';
     div.textContent = (m.text || '(Skizze)') + (m.marks ? `\n✎ ${m.marks} Strich${m.marks > 1 ? 'e' : ''}` : '');
     if (m.image) { const img = new Image(); img.src = m.image; div.append(img); }
+    if (m.photoImgs?.length) {
+      const f = document.createElement('div'); f.className = 'fotos';
+      for (const src of m.photoImgs) { const img = new Image(); img.src = src; f.append(img); }
+      div.append(f);
+    } else if (m.photos) div.textContent += `\n📷 ${m.photos} Foto${m.photos > 1 ? 's' : ''}`;
     agentBlock = null;
   } else if (m.kind === 'text') {
     if (!replaying) say(m.text);
@@ -554,12 +559,13 @@ $('#composer').addEventListener('submit', (e) => {
   e.preventDefault();
   if (busy) return;
   const text = $('#text').value.trim();
-  if (!text && !strokes.length) { toast('Schreib, was passieren soll, oder zeichne etwas.'); return; }
+  if (!text && !strokes.length && !photos.length) { toast('Schreib, was passieren soll, zeichne etwas oder mach ein Foto.'); return; }
   for (const s of strokes) if (!s.anchors) { s.anchors = s.pts.map(([x, y]) => pick(x, y)); s.inside = s.closed ? interiorHits(s.pts) : []; }
   const image = snapshot();
-  send({ type: 'prompt', text, image, marks: marksPayload(), camera: scCamera(), sketch: sketchPayload(),
+  send({ type: 'prompt', text, image, marks: marksPayload(), camera: scCamera(), sketch: sketchPayload(), photos: photos.slice(),
          view: { width: viewport.clientWidth, height: viewport.clientHeight } });
-  agentMsg({ kind: 'user', text, marks: strokes.length, image: strokes.length ? image : null });
+  agentMsg({ kind: 'user', text, marks: strokes.length, image: strokes.length ? image : null, photoImgs: photos.slice() });
+  photos = []; renderPhotos();
   pendingLocalUser = true;
   $('#text').value = '';
   // Skizze mit Blickwinkel merken: „⤺ Skizze“ und „KI-Runde zurück“ holen sie zum Korrigieren zurück.
@@ -776,6 +782,43 @@ function restoreSketch() {
 }
 $('#restore').onclick = restoreSketch;
 
+// ---------- Fotos (Kamera des Tablets) ----------
+// Ein Foto zeigt der KI ein Vorbild oder das gemeinte Teil. Es wird auf dem Tablet verkleinert
+// (lange Seite 1568 px, JPEG) und mit der nächsten Nachricht gesendet.
+let photos = [];
+const MAX_PHOTOS = 4;
+function renderPhotos() {
+  const box = $('#photos'); box.innerHTML = '';
+  photos.forEach((src, i) => {
+    const d = document.createElement('div'); d.className = 'ph';
+    const img = new Image(); img.src = src; d.append(img);
+    const x = document.createElement('button'); x.type = 'button'; x.textContent = '✕'; x.title = 'Foto entfernen';
+    x.onclick = () => { photos.splice(i, 1); renderPhotos(); };
+    d.append(x); box.append(d);
+  });
+  box.hidden = !photos.length;
+}
+async function addPhoto(file) {
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  const scale = Math.min(1, 1568 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  bmp.close?.();
+  photos.push(c.toDataURL('image/jpeg', 0.85));
+  renderPhotos();
+}
+$('#photo').onclick = () => {
+  if (photos.length >= MAX_PHOTOS) { toast(`Höchstens ${MAX_PHOTOS} Fotos pro Nachricht.`); return; }
+  $('#photoinput').click();
+};
+$('#photoinput').onchange = async (e) => {
+  const f = e.target.files?.[0]; e.target.value = '';
+  if (!f) return;
+  try { await addPhoto(f); toast('Foto angehängt. Beschreibe dazu, was du willst, und sende.'); }
+  catch (err) { toast('Foto konnte nicht gelesen werden: ' + err.message); }
+};
+
 // ---------- Skizze über Neustarts hinweg ----------
 // Jede Runde speichert die vollständigen Striche (3D-Anker, Druck, Farbe) und die Kamera. Beim Öffnen
 // eines Projekts schickt der PC die letzte Runde. War sie nach dem letzten Speichern (ihr Ergebnis
@@ -864,6 +907,7 @@ window.studioDebug = { worldToScreen: (x, y, z) => project(new THREE.Vector3(x, 
     strokeColors: strokes.map((s) => s.color.name), pressures: strokes.map((s) => s.pr) }),
   marks: () => marksPayload(),
   sketchLines: () => sketchRoot.children.length,
+  photos: () => photos.length,
   sketch: () => sketchPayload(),
   strokeScreens: () => strokes.map((s) => s.anchors.map((a) => project(a.p).slice(0, 2))),
   text: () => document.querySelector('#text').value,
