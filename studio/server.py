@@ -225,8 +225,10 @@ class Studio:
         image = data.get("image")
         if not text and not image:
             return
-        self.turn_no += 1
         turn_dir = self._turn_dir()
+        # Fortlaufend je Ordner zählen: Nach einem Neustart des Studios dürfen alte Runden nicht
+        # überschrieben werden.
+        self.turn_no = max([self.turn_no, *self._turn_numbers(turn_dir)]) + 1
         content: list[dict] = []
         if image:
             m = re.match(r"data:image/(png|jpeg);base64,(.+)", image, re.S)
@@ -248,9 +250,13 @@ class Studio:
                         "Farbbedeutungen legt nur der Benutzer fest (Text dieser oder früherer Runden, "
                         "farblegende_bisher)."),
         }
+        record = {"zeit": datetime.now().isoformat(timespec="seconds"), "text": text, **context}
+        sketch = data.get("sketch")
+        if isinstance(sketch, dict) and isinstance(sketch.get("strokes"), list):
+            # Vollständige Striche (nur für das Wiederherstellen, nicht für den Agenten).
+            record["skizze"] = sketch
         (turn_dir / f"runde-{self.turn_no:03d}.json").write_text(json.dumps(
-            {"zeit": datetime.now().isoformat(timespec="seconds"), "text": text, **context},
-            ensure_ascii=False, indent=1))
+            record, ensure_ascii=False, indent=1))
         content.append({"type": "text", "text": (text or "(keine Beschreibung, siehe Skizze)")
                         + "\n\n<studio-kontext>\n" + json.dumps(context, ensure_ascii=False)
                         + "\n</studio-kontext>"})
@@ -270,6 +276,44 @@ class Studio:
     async def _after_turn(self) -> None:
         await self.agent.wait_turn()
         await self.broadcast({"type": "busy", "busy": False})
+
+    @staticmethod
+    def _turn_numbers(d: Path) -> list[int]:
+        out = []
+        for f in d.glob("runde-*.json"):
+            m = re.fullmatch(r"runde-(\d+)\.json", f.name)
+            if m:
+                out.append(int(m.group(1)))
+        return out
+
+    def last_sketch(self) -> dict | None:
+        """Letzte Runde mit Skizze des offenen Projekts, damit man dort weitermachen kann."""
+        if not self.project_path:
+            return None
+        d = self.project_path.with_suffix(".studio")
+        rounds = []
+        for n in self._turn_numbers(d):
+            try:
+                rounds.append((n, json.loads((d / f"runde-{n:03d}.json").read_text())))
+            except (OSError, ValueError):
+                continue
+        # Nach Zeit, nicht nach Nummer: ältere Studio-Versionen haben nach einem Neustart wieder bei 001
+        # angefangen.
+        rounds.sort(key=lambda nr: (str(nr[1].get("zeit", "")), nr[0]), reverse=True)
+        for n, r in rounds:
+            if not (r.get("skizze") or r.get("markierungen")):
+                continue
+            unsaved = False
+            try:
+                saved = datetime.fromtimestamp(self.project_path.stat().st_mtime)
+                unsaved = datetime.fromisoformat(r["zeit"]) > saved
+            except (OSError, KeyError, ValueError):
+                pass
+            return {"type": "last_sketch", "runde": n, "zeit": r.get("zeit"), "text": r.get("text", ""),
+                    "kamera": r.get("kamera"), "skizze": r.get("skizze"),
+                    "markierungen": None if r.get("skizze") else r.get("markierungen"),
+                    "unsaved": unsaved}
+        return None
 
     def _turn_dir(self) -> Path:
         base = self.project_path.with_suffix(".studio") if self.project_path else \
@@ -308,6 +352,7 @@ class Studio:
                 self.project_path = None
                 self.legend = {}
                 self.turn_checkpoints.clear()
+                self.turn_no = 0
                 if hasattr(self, "_session_dir"):
                     del self._session_dir
                 await self.agent.reset()
@@ -389,8 +434,11 @@ class Studio:
         self.turn_checkpoints.clear()
         await self.agent.reset()
         self.log_lines.clear()
+        self.turn_no = 0
         await self.broadcast({"type": "reset"})
         await self.schedule_export()
+        if (last := self.last_sketch()):
+            await self.broadcast(last)
 
     # ---------- Web ----------
 
@@ -486,6 +534,9 @@ class Studio:
         await ws.send_json(self.capabilities())
         if self.revision is not None:
             await self.schedule_export()
+        # Frisch gestartetes Studio mit offenem Projekt: letzte Skizze zum Weitermachen anbieten.
+        if not self.log_lines and (last := self.last_sketch()):
+            await ws.send_json(last)
         try:
             async for msg in ws:
                 if msg.type == WSMsgType.TEXT:

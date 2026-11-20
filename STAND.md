@@ -5,7 +5,7 @@
 > Die Anforderungen stehen in [docs/AUFTRAG.md](docs/AUFTRAG.md), der Funktionstest in
 > [docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md).
 
-**Letzte Aktualisierung:** 19.11.2026 · **Version:** 0.1.0 · **Getestet mit:** SolidCraft 0.44.1,
+**Letzte Aktualisierung:** 20.11.2026 · **Version:** 0.1.0 · **Getestet mit:** SolidCraft 0.44.1,
 Claude Code 2.1.x, Firefox für Android, Chrome (Testautomatik), Linux (CachyOS), RTX 4060 8 GB,
 Galaxy Tab S8+
 
@@ -50,6 +50,7 @@ Galaxy Tab S8+
 | A: Maße und Beschriftungen ergänzen | 🟡 | nur als Bild (handschriftlich) bzw. per Text/Sprache. Keine Handschrifterkennung, keine Bemaßungsobjekte |
 | A: Vorhandene Zeichnungen öffnen | 🟡 | `.sc` aus dem Studio-Ordner und dessen Elternordner. Originale werden als Kopie gespeichert. Nicht automatisch getestet. |
 | A: Fotos von Papierskizzen importieren | 📋 | |
+| A: Weiterarbeiten nach Neustart | ✅ | Beim Öffnen eines Projekts kommt die letzte Skizze zurück: mit Strichen, Farben, Druck und Blickwinkel. Ist die Runde neuer als die gespeicherte Datei, kommt sie samt Text direkt auf die Zeichenebene, sonst liegt sie unter „⤺ Skizze“ bereit. Ältere Runden ohne vollständige Striche werden aus den 3D-Punkten nachgebildet. Test A4, am Tablet noch nicht bedient. |
 | A: Korrigieren und löschen | ✅ | Radierer, „↩ Strich“, „✕ Alle“. „⤺ Skizze“ holt eine gesendete Skizze zum Korrigieren zurück, „KI-Runde“ nimmt die Änderung zurück und bringt die Skizze wieder (Wunsch aus dem Tablet-Test 20.11.). |
 | B: Skizze und Sprache gemeinsam interpretieren | ✅ | Bild, Striche und Text in einer Runde |
 | B: Geometrie und Maße erkennen | ✅ | Form aus der Skizze, Maße aus dem Text |
@@ -87,6 +88,7 @@ Galaxy Tab S8+
 | 19.11.2026 | Abschnitt S Pen: `--full` (3 Läufe) | 2× bestanden, 1× in Runde 2 Strich nach dem Senden sichtbar (siehe bekannte Fehler), KI-Ergebnisse immer exakt |
 | 19.11.2026 | Abschnitt Sprache: `--smoke` mit Mikrofon-Attrappe (WAV aus Piper, Echo-Erkennung, 🔊 aus, Rückfrage vorlesen → automatisch zuhören → Text im Feld, Dazwischenreden mit 🎤) | bestanden (34 Prüfungen) |
 | 20.11.2026 | Skizze zurückholen: `--smoke` (Senden abgefangen, Skizze mit Farben und Blickwinkel zurück, sichtbar) | bestanden. Dazu Testkorrektur: vor der Handballen-Prüfung warten, bis die Kamera nach der Fingerdrehung stillsteht. |
+| 20.11.2026 | Skizze über Neustarts: `skizze_laden.mjs` (Test-Instanz), dazu `--smoke` und `--full` | bestanden (9 + alle Smoke-Prüfungen, Volltest 3 Runden exakt). Mit einer Kopie eines echten Projekts (altes Format) kam die Skizze mit 28 Strichen und Text zurück. |
 | 20.11.2026 | **Praxistest auf dem Galaxy Tab S8+ durch den Benutzer** | Druck ✅, Handballen ✅, Drehen/Zoomen ✅, mehrere Farben mit verschiedenen Anweisungen ✅, Sprachausgabe ✅, **Radieren mit S-Pen-Taste ❌** (radiert nicht). Rest der Prüfliste noch offen. |
 | 19.11.2026 | Abschnitt Sprache: `--full` (4 Läufe) | Ergebnisse der KI immer exakt, Antwort wird vorgelesen. Strichfehler in Runde 2 in 3 Läufen, nach der Umstellung auf die CPU-Leinwand 2/2 bestanden |
 | 19.11.2026 | Abschnitt Linienfarben: `--full` mit Runde 3 (zwei Farben, zwei Aufgaben, Legende aus dem Text) | bestanden. Runde 3: 11 621 mm³ (Soll 11 621), Legende `{"grün":"Bohrung Ø 4 durchgehend","violett":"Fase 2 mm"}` |
@@ -127,6 +129,10 @@ Alle Prüfungen bestanden.
     hängt nicht mehr von der Skalierung ab.
   - Ergebnis: vorher 3 von 3 Volltests mit Fehler in Runde 2, danach 2 von 2 fehlerfrei.
   - Der Volltest prüft weiter nach jeder Runde und gibt im Fehlerfall Protokoll und Pixeldiagnose aus.
+
+- **Behoben (20.11.):** Nach einem Neustart des Studios begann die Rundennummer wieder bei 001 und
+  überschrieb alte Rundenprotokolle im Projektordner. Jetzt wird je Ordner fortlaufend gezählt.
+  Bereits überschriebene Runden sind verloren. Deshalb sucht das Laden die letzte Runde nach Zeit, nicht nach Nummer.
 
 ## Nächste Schritte (Priorität)
 

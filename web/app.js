@@ -121,6 +121,7 @@ function setModel(root) {
   modelRoot = root;
   if (root) scene.add(root);
   if (root && firstModel) { firstModel = false; fitView(VIEW_ISO.clone()); }
+  if (pendingSketch) { const m = pendingSketch; pendingSketch = null; applyLastSketch(m); }
   reanchorStrokes();
 }
 
@@ -426,8 +427,12 @@ function handle(m) {
     case 'status': if (m.solidcraft === false) toast('SolidCraft nicht erreichbar: ' + m.text); break;
     case 'saved': toast('Gespeichert: ' + m.path); break;
     case 'error': toast(m.text); break;
-    case 'reset': $('#log').innerHTML = ''; firstModel = true; strokes = []; lastSent = null; $('#restore').disabled = true; drawStrokes(); break;
+    case 'reset': if (autoText && $('#text').value === autoText) $('#text').value = ''; autoText = null; $('#log').innerHTML = ''; firstModel = true; strokes = []; lastSent = null; $('#restore').disabled = true; drawStrokes(); break;
     case 'files': showFiles(m.files); break;
+    case 'last_sketch':
+      // Erst anwenden, wenn das Modell geladen ist (sonst setzt die erste Ansicht die Kamera zurück).
+      if (modelRoot && !firstModel) applyLastSketch(m); else pendingSketch = m;
+      break;
     case 'legend': legend = m.legend || {}; renderPalette(); break;
     case 'backend': {
       const b = $('#backend'), local = m.mode === 'lokal';
@@ -482,7 +487,7 @@ $('#composer').addEventListener('submit', (e) => {
   if (!text && !strokes.length) { toast('Schreib, was passieren soll, oder zeichne etwas.'); return; }
   for (const s of strokes) if (!s.anchors) { s.anchors = s.pts.map(([x, y]) => pick(x, y)); s.inside = s.closed ? interiorHits(s.pts) : []; }
   const image = snapshot();
-  send({ type: 'prompt', text, image, marks: marksPayload(), camera: scCamera(),
+  send({ type: 'prompt', text, image, marks: marksPayload(), camera: scCamera(), sketch: sketchPayload(),
          view: { width: viewport.clientWidth, height: viewport.clientHeight } });
   agentMsg({ kind: 'user', text, marks: strokes.length, image: strokes.length ? image : null });
   pendingLocalUser = true;
@@ -700,6 +705,70 @@ function restoreSketch() {
   toast('Skizze zurückgeholt: korrigieren und neu senden.');
 }
 $('#restore').onclick = restoreSketch;
+
+// ---------- Skizze über Neustarts hinweg ----------
+// Jede Runde speichert die vollständigen Striche (3D-Anker, Druck, Farbe) und die Kamera. Beim Öffnen
+// eines Projekts schickt der PC die letzte Runde. War sie nach dem letzten Speichern (ihr Ergebnis
+// fehlt also im Modell), kommt sie samt Text sofort zurück, sonst liegt sie unter „⤺ Skizze“ bereit.
+let pendingSketch = null;
+let autoText = null;   // vom Laden eingesetzter Text: beim Wechsel des Projekts wieder entfernen
+const r3a = (v) => v.toArray().map((x) => +x.toFixed(3));
+function sketchPayload() {
+  const a = (x) => ({ p: r3a(x.p), n: x.n ? r3a(x.n) : null, body: x.body || null, on: x.on });
+  return {
+    cam: { pos: r3a(camera.position), target: r3a(controls.target) },
+    strokes: strokes.map((s) => ({ farbe: s.color.name, closed: !!s.closed,
+      pr: s.pr.map((v) => +(+v).toFixed(2)), anchors: s.anchors.map(a), inside: (s.inside || []).map(a) })),
+  };
+}
+function camFromSc(k) {
+  // Umkehrung von scCamera(): yaw 0 = Blick entlang +Y, pitch positiv = von oben.
+  const dir = new THREE.Vector3(Math.sin(k.yaw) * Math.cos(k.pitch), Math.cos(k.yaw) * Math.cos(k.pitch), -Math.sin(k.pitch));
+  const target = new THREE.Vector3(...k.target);
+  return { target, pos: target.clone().addScaledVector(dir, -k.distance) };
+}
+function applyLastSketch(m) {
+  const vec = (v) => (v ? new THREE.Vector3(...v) : null);
+  const anchor = (x) => ({ p: vec(x.p), n: vec(x.n), body: x.body || null, on: x.on || x.auf || 'modell' });
+  let list = [], cam = null;
+  if (m.skizze) {
+    cam = { pos: vec(m.skizze.cam.pos), target: vec(m.skizze.cam.target) };
+    list = m.skizze.strokes.map((s) => ({ farbe: s.farbe, closed: s.closed, pr: s.pr,
+      anchors: s.anchors.map(anchor), inside: (s.inside || []).map(anchor) }));
+  } else if (m.markierungen) {
+    // Ältere Runden ohne vollständige Striche: aus den übertragenen 3D-Punkten nachbilden.
+    if (m.kamera) cam = camFromSc(m.kamera);
+    list = m.markierungen.map((k) => {
+      const anchors = (k.punkte_entlang || []).map(anchor);
+      const closed = String(k.art || '').startsWith('geschlossen');
+      if (closed && anchors.length > 2) anchors.push(anchors[0]);
+      return { farbe: k.farbe, closed, pr: anchors.map(() => 0.5), anchors, inside: (k.punkte_innen || []).map(anchor) };
+    });
+  }
+  list = list.filter((s) => s.anchors.length);
+  if (!list.length) return;
+  if (cam) {
+    camera.position.copy(cam.pos); controls.target.copy(cam.target);
+    const dist = cam.pos.distanceTo(cam.target);
+    camera.near = dist / 100; camera.far = dist * 100; camera.updateProjectionMatrix();
+    controls.update();
+  }
+  const restored = list.map((s) => ({ color: COLORS.find((c) => c.name === s.farbe) || COLORS[0],
+    closed: s.closed, pr: s.pr, anchors: s.anchors, inside: s.inside, cam: 'gespeichert',
+    pts: s.anchors.map((a) => project(a.p).slice(0, 2)) }));
+  lastSent = { strokes: restored, cam: camera.position.clone(), target: controls.target.clone() };
+  $('#restore').disabled = false;
+  const zeit = m.zeit ? new Date(m.zeit).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '';
+  if (m.unsaved) {
+    strokes = [...restored];
+    if (!$('#text').value.trim() && m.text) { $('#text').value = m.text; autoText = m.text; }
+    drawStrokes('geladen');
+    toast(`Letzte Runde vom ${zeit} war nicht gespeichert: Skizze und Text sind zurück. Prüfen und senden.`);
+  } else {
+    drawStrokes('geladen');
+    toast(`Letzte Skizze vom ${zeit} liegt unter ⤺ Skizze bereit.`);
+  }
+}
 $('#fit').onclick = () => fitView();
 $('#top').onclick = () => fitView(VIEW_TOP.clone());
 $('#iso').onclick = () => fitView(VIEW_ISO.clone());
@@ -743,6 +812,9 @@ function toast(text) {
 window.studioDebug = { worldToScreen: (x, y, z) => project(new THREE.Vector3(x, y, z)), state: () => ({ strokes: strokes.length, current: !!current, tool, color: color.name, legend,
     strokeColors: strokes.map((s) => s.color.name), pressures: strokes.map((s) => s.pr) }),
   marks: () => marksPayload(),
+  sketch: () => sketchPayload(),
+  strokeScreens: () => strokes.map((s) => s.anchors.map((a) => project(a.p).slice(0, 2))),
+  text: () => document.querySelector('#text').value,
   camera: () => camera.position.toArray().map((v) => +v.toFixed(3)),
   input: () => ({ penSeen, ignoredTouches: ignoredTouches.size, controls: controls.enabled }),
   speech: () => ({ on: speakOn, listen: listenOn, caps, playing: speech.playing, queue: speech.queue.length,

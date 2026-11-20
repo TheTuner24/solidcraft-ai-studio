@@ -136,7 +136,7 @@ SolidCraft vom Skript gestartet, endet das Studio mit SolidCraft.
 | Farbpunkt in der Leiste | Strichfarbe wählen. Unter dem Punkt steht die Bedeutung, die du der KI genannt hast. |
 | Stifttaste gedrückt, Radiererende oder Werkzeug „Radierer“ | Striche radieren |
 | ↩ Strich / ✕ Alle | letzten Strich bzw. alle Striche entfernen |
-| ⤺ Skizze | zuletzt gesendete Skizze samt Blickwinkel zurückholen, korrigieren und neu senden. „KI-Runde“ holt sie automatisch zurück. |
+| ⤺ Skizze | zuletzt gesendete Skizze samt Blickwinkel zurückholen, korrigieren und neu senden. „KI-Runde“ holt sie automatisch zurück. Auch nach einem Neustart: Beim Öffnen eines Projekts liegt die letzte Skizze hier bereit. War die letzte Runde noch nicht gespeichert, kommen Skizze und Text sofort zurück. |
 | ein Finger | Modell drehen |
 | zwei Finger | zoomen und verschieben |
 | Maus am PC | links zeichnen, rechts drehen, Mitte verschieben, Rad zoomen |

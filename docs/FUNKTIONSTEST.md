@@ -119,6 +119,20 @@ Die Prüfung misst das Volumen der echten Geometrie in SolidCraft, sie verlässt
 Antwort der KI. Bilder der Ansicht landen in `tests/funktionstest/ergebnis/`. `SICHTBAR=1` zeigt
 den Browser.
 
+### A4. Skizze über Neustarts (ohne KI, nur Test-Instanz)
+
+Prüft, dass ein geöffnetes Projekt seine letzte Skizze zurückbringt. Der Test legt in der Test-Instanz
+das Bauteil `SkizzeLaden.sc` an und öffnet es mehrmals, deshalb nie gegen die Arbeitssitzung:
+
+```bash
+cd tests/funktionstest
+PROJEKTE=/tmp/studio-test STUDIO_URL="$(cat /tmp/studio-test/.cache/studio-url.txt)" CONTROL_PORT=7980 node skizze_laden.mjs
+```
+
+Erwartung: Eine Runde nach dem letzten Speichern kommt mit Strichen, Farben, Druck, Blickwinkel
+(Abweichung < 2 px) und Text sofort zurück. Eine ältere Runde liegt nur unter „⤺ Skizze“ bereit.
+Runden im alten Format (nur 3D-Punkte) werden aus den Punkten nachgebildet.
+
 ## Teil B – Prüfliste auf dem Tablet
 
 Mit `./start.sh` bei angeschlossenem Tablet (USB-Debugging an) öffnet sich die Oberfläche in Firefox.
