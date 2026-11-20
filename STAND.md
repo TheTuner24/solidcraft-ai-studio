@@ -5,7 +5,7 @@
 > Die Anforderungen stehen in [docs/AUFTRAG.md](docs/AUFTRAG.md), der Funktionstest in
 > [docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md).
 
-**Letzte Aktualisierung:** 20.11.2026 · **Version:** 0.1.0 · **Getestet mit:** SolidCraft 0.45.0 (vorher 0.44.1),
+**Letzte Aktualisierung:** 20.11.2026 · **Version:** 0.2.0 · **Getestet mit:** SolidCraft 0.45.0 (vorher 0.44.1),
 Claude Code 2.1.x, Firefox für Android, Chrome (Testautomatik), Linux (CachyOS), RTX 4060 8 GB,
 Galaxy Tab S8+
 

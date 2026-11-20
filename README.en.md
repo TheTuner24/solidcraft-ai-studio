@@ -126,6 +126,10 @@ Options:
 sed "s#@DIR@#$PWD#" packaging/solidcraft-ai-studio.desktop.in > ~/.local/share/applications/solidcraft-ai-studio.desktop
 ```
 
+The studio has its own icon (tablet with pen and an "AI" badge), so it is not mixed up with plain
+SolidCraft in the menu or favourites. If SolidCraft is already a favourite, replace it with the
+studio: only the studio starts SolidCraft with the control channel and the tablet interface.
+
 ## Usage
 
 | Input | Effect |

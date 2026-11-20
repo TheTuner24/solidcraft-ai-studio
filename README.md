@@ -124,6 +124,10 @@ Optionen:
 sed "s#@DIR@#$PWD#" packaging/solidcraft-ai-studio.desktop.in > ~/.local/share/applications/solidcraft-ai-studio.desktop
 ```
 
+Das Studio hat ein eigenes Icon (Tablet mit Stift und „AI“-Plakette). So ist es im Startmenü und in
+den Favoriten nicht mit dem normalen SolidCraft zu verwechseln. Wer SolidCraft dort schon als Favorit
+hat, ersetzt ihn durch das Studio: Nur so startet SolidCraft mit Steuerkanal und Tablet-Oberfläche.
+
 Aus dem Startmenü gestartet, meldet sich das Studio per Benachrichtigung und schreibt nach
 `~/CAD/ai-studio/.cache/studio.log`. Ein zweiter Aufruf verbindet nur das Tablet neu. Wurde
 SolidCraft vom Skript gestartet, endet das Studio mit SolidCraft.

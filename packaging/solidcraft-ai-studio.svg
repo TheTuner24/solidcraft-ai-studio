@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- SolidCraft AI Studio: Tablet mit Würfel-Skizze, Stift und KI-Plakette. Eigenes Motiv, MIT-Lizenz. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b3445"/>
+      <stop offset="1" stop-color="#171c26"/>
+    </linearGradient>
+  </defs>
+  <rect x="20" y="16" width="200" height="224" rx="28" fill="url(#bg)" stroke="#5aa2ff" stroke-width="8"/>
+  <!-- Würfel als Handskizze -->
+  <g fill="none" stroke="#5aa2ff" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M120 58 L178 88 L178 152 L120 182 L62 152 L62 88 Z"/>
+    <path d="M62 88 L120 118 L178 88 M120 118 L120 182"/>
+  </g>
+  <path d="M62 88 L120 58 L178 88 L120 118 Z" fill="#5aa2ff" opacity="0.35"/>
+  <!-- Stift -->
+  <g transform="rotate(40 196 150)">
+    <rect x="186" y="70" width="22" height="104" rx="6" fill="#e8ecf2"/>
+    <path d="M186 174 L208 174 L197 200 Z" fill="#e8ecf2"/>
+    <path d="M193 190 L201 190 L197 200 Z" fill="#2b3445"/>
+    <rect x="186" y="88" width="22" height="8" fill="#9aa6b8"/>
+  </g>
+  <!-- KI-Plakette -->
+  <rect x="128" y="176" width="116" height="68" rx="20" fill="#ff7a1a" stroke="#ffffff" stroke-width="7"/>
+  <text x="186" y="226" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-weight="700" font-size="46" fill="#ffffff">AI</text>
+</svg>
