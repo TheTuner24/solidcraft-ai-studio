@@ -257,7 +257,8 @@ class Studio:
                 continue
             lines = sketch_polylines(si)
             if lines:
-                out.append({"name": sk.get("name"), "lines": lines})
+                # Ebene mitgeben: Stiftstriche auf der Skizze haften dann an ihr (auch ohne Körper).
+                out.append({"name": sk.get("name"), "lines": lines, "plane": si.get("plane")})
         return out
 
     # ---------- Agent ----------
@@ -330,7 +331,9 @@ class Studio:
             "farben_in_dieser_runde": sorted({m.get("farbe") for m in data.get("marks") or [] if m.get("farbe")}),
             "farblegende_bisher": self.legend,
             "hinweis": ("Bild: Tablet-Ansicht mit den farbigen Stiftstrichen des Benutzers. "
-                        "Markierungen: pro Strich Farbe und 3D-Treffer auf dem Modell (Welt-mm, Z oben). "
+                        "Markierungen: pro Strich Farbe und 3D-Treffer (Welt-mm, Z oben). auf=modell: Körperfläche "
+                        "(body = Körper); auf=skizze: genau auf einer Skizzenlinie, auf=skizzenebene: in der Ebene "
+                        "einer Skizze (body = Skizzenname); auf=boden: Z=0. "
                         "Farbbedeutungen legt nur der Benutzer fest (Text dieser oder früherer Runden, "
                         "farblegende_bisher)."),
         }

@@ -91,6 +91,7 @@ Galaxy Tab S8+
 | 20.11.2026 | Skizze über Neustarts: `skizze_laden.mjs` (Test-Instanz), dazu `--smoke` und `--full` | bestanden (9 + alle Smoke-Prüfungen, Volltest 3 Runden exakt). Mit einer Kopie eines echten Projekts (altes Format) kam die Skizze mit 28 Strichen und Text zurück. |
 | 20.11.2026 | Update auf SolidCraft 0.45.0: `--smoke`, `skizze_laden.mjs`, `--full` (Test-Instanz), Projekt aus 0.44.1 öffnen | bestanden (Volltest 3 Runden exakt). Ein mit 0.44.1 gespeichertes Projekt öffnet samt Skizze. |
 | 20.11.2026 | Öffnen/Speichern am PC, Tablet folgt; Skizzen auf dem Tablet: `--smoke`, `skizze_laden.mjs`, `--full` (Test-Instanz mit eigenem HOME) | bestanden. Volltest: Neu und Speichern über SolidCraft, 3 Runden exakt, Runden wandern zur gespeicherten Datei. Skizzen: Kopie eines echten Bauteils mit 4 Skizzen, 18 Linien auf dem Tablet (Bild geprüft). |
+| 20.11.2026 | Striche haften an Skizzen (Fehler vom Tablet: „Linie nach dem Drehen nicht mehr dort, wo ich gezeichnet habe“): `skizze_laden.mjs` Teil 4, `--smoke`, `--full` | bestanden. Strich auf senkrechter Skizze ohne Körper: Abweichung nach dem Drehen 0,00 px. Mit einer Kopie des echten Bauteils: 1,6 px. |
 | 20.11.2026 | **Praxistest auf dem Galaxy Tab S8+ durch den Benutzer** | Druck ✅, Handballen ✅, Drehen/Zoomen ✅, mehrere Farben mit verschiedenen Anweisungen ✅, Sprachausgabe ✅, **Radieren mit S-Pen-Taste ❌** (radiert nicht). Rest der Prüfliste noch offen. |
 | 19.11.2026 | Abschnitt Sprache: `--full` (4 Läufe) | Ergebnisse der KI immer exakt, Antwort wird vorgelesen. Strichfehler in Runde 2 in 3 Läufen, nach der Umstellung auf die CPU-Leinwand 2/2 bestanden |
 | 19.11.2026 | Abschnitt Linienfarben: `--full` mit Runde 3 (zwei Farben, zwei Aufgaben, Legende aus dem Text) | bestanden. Runde 3: 11 621 mm³ (Soll 11 621), Legende `{"grün":"Bohrung Ø 4 durchgehend","violett":"Fase 2 mm"}` |
@@ -136,6 +137,8 @@ Alle Prüfungen bestanden.
   - Ergebnis: vorher 3 von 3 Volltests mit Fehler in Runde 2, danach 2 von 2 fehlerfrei.
   - Der Volltest prüft weiter nach jeder Runde und gibt im Fehlerfall Protokoll und Pixeldiagnose aus.
 
+- **Behoben (20.11.):** Striche auf SolidCraft-Skizzen ohne Körper landeten auf dem Boden (Z = 0) hinter der
+  Linie und verrutschten beim Drehen. Jetzt haften sie an Skizzenlinien und -ebenen.
 - **Behoben (20.11.):** Nach einem Neustart des Studios begann die Rundennummer wieder bei 001 und
   überschrieb alte Rundenprotokolle im Projektordner. Jetzt wird je Ordner fortlaufend gezählt.
   Bereits überschriebene Runden sind verloren. Deshalb sucht das Laden die letzte Runde nach Zeit, nicht nach Nummer.

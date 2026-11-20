@@ -27,7 +27,7 @@ updates can be taken without merging.
 | Voice output: answers read aloud (local Piper), can be switched off, answer questions by voice, echo protection | ✅ tested automatically (tablet check 🟡) |
 | Undo/redo, "revert AI turn" | ✅ / 🟡 partly tested |
 | Open and save on the PC in SolidCraft, the tablet follows the open file (also on a NAS) | ✅ tested |
-| SolidCraft sketches visible on the tablet (yellow, construction lines dashed) | ✅ checked |
+| SolidCraft sketches visible on the tablet (yellow, construction lines dashed). Pen strokes stick to sketch lines and planes, also without a body, and stay in place when the view turns. | ✅ tested |
 | S Pen: pressure → line width, palm rejection, pen button erases, pen draws / finger navigates | ✅ tested automatically (tablet check 🟡) |
 | Local AI via Ollama (toggle) | ⛔ experimental, not usable with 8 GB VRAM |
 | Line colours: colour per stroke, you define the meaning by voice/text ("green is a Ø 4 hole") | ✅ tested (tablet use 🟡) |

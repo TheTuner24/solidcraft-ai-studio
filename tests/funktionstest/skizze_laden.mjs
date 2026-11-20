@@ -1,4 +1,5 @@
-// Test „Skizze über Neustarts“ (ohne KI): Ein Projekt wird geöffnet, zwei Striche gezeichnet und als
+// Test „Skizzen“ (ohne KI): Teil 1–3 Skizze über Neustarts, Teil 4 SolidCraft-Skizzen auf dem Tablet.
+// Ein Projekt wird geöffnet, zwei Striche gezeichnet und als
 // gespeicherte Runden abgelegt (neues Format mit vollständigen Strichen und altes Format nur mit
 // 3D-Punkten). Nach erneutem Öffnen müssen Skizze, Farben, Blickwinkel und Text zurückkommen.
 //
@@ -110,6 +111,29 @@ fs.writeFileSync(path.join(studioDir, 'runde-001.json'), JSON.stringify({ zeit: 
 await openProject();
 st = await dbg('state');
 ok(st.strokes === 2 && JSON.stringify(st.strokeColors) === JSON.stringify(before.strokeColors), 'Altes Rundenformat: Striche aus den 3D-Punkten nachgebildet');
+
+// 4) SolidCraft-Skizze ohne Körper, senkrecht (Ebene x = 25): sichtbar auf dem Tablet, und ein Strich
+//    entlang ihrer Linie bleibt nach dem Drehen auf der Linie (haftet an der Skizze, nicht am Boden).
+await exec('file.new', { name: 'SkizzeSenkrecht' });
+await exec('sketch.create', { plane: { origin: [25, 0, 0], x_dir: [0, 1, 0], y_dir: [0, 0, 1] } });
+await exec('sketch.line', { points: [[-10, 10], [-10, 30], [10, 30], [10, 10], [-10, 10]] });
+await exec('sketch.finish', {});
+await page.waitForTimeout(4500);
+ok(await dbg('sketchLines') > 0, `Skizze auf dem Tablet sichtbar (${await dbg('sketchLines')} Linien)`);
+await page.evaluate(() => { document.querySelector('#text').value = ''; });
+await page.click('#iso'); await page.waitForTimeout(800);
+const L0 = await toScreen(25, -10, 28), L1 = await toScreen(25, -10, 12);
+await stroke(Array.from({ length: 11 }, (_, i) => [L0[0] + (L1[0] - L0[0]) * i / 10 + 1.5, L0[1] + (L1[1] - L0[1]) * i / 10 + 1.5]));
+const sm = (await dbg('marks')).at(-1);
+ok(sm.punkte_entlang.every((a) => a.auf === 'skizze' && Math.abs(a.p[0] - 25) < 0.01 && Math.abs(a.p[1] + 10) < 0.01),
+  `Strich haftet an der Skizzenlinie (${[...new Set(sm.punkte_entlang.map((a) => a.auf))]})`);
+await page.click('#top'); await page.waitForTimeout(800);
+const vb = await box(), M0 = await toScreen(25, -10, 30), M1 = await toScreen(25, -10, 10);
+const lineDist = ([px, py]) => { const [ax, ay, bx, by] = [M0[0] - vb.x, M0[1] - vb.y, M1[0] - vb.x, M1[1] - vb.y];
+  const t = Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / ((bx - ax) ** 2 + (by - ay) ** 2 || 1)));
+  return Math.hypot(px - ax - t * (bx - ax), py - ay - t * (by - ay)); };
+const off = Math.max(...(await dbg('strokeScreens')).at(-1).map(lineDist));
+ok(off < 3, `Nach dem Drehen liegt der Strich noch auf der Linie (Abweichung ${off.toFixed(2)} px)`);
 
 await browser.close();
 console.log(failed ? `${failed} Prüfung(en) fehlgeschlagen.` : 'Alle Prüfungen bestanden.');

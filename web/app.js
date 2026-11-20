@@ -44,8 +44,19 @@ const sketchRoot = new THREE.Group();
 scene.add(sketchRoot);
 const SKETCH_MAT = new THREE.LineBasicMaterial({ color: 0xffd23f, depthTest: false, transparent: true, opacity: 0.95 });
 const SKETCH_CONSTR_MAT = new THREE.LineDashedMaterial({ color: 0x9aa6b8, dashSize: 2, gapSize: 1.5, depthTest: false, transparent: true, opacity: 0.7 });
+let sketchPlanes = [];   // je Skizze: Ebene und Ausdehnung, damit Stiftstriche dort haften
 function renderSketches(list) {
   for (const o of [...sketchRoot.children]) { sketchRoot.remove(o); o.geometry.dispose(); }
+  sketchPlanes = [];
+  for (const sk of list || []) {
+    if (!sk.plane) continue;
+    const o = new THREE.Vector3(...sk.plane.origin), x = new THREE.Vector3(...sk.plane.x_dir), y = new THREE.Vector3(...sk.plane.y_dir);
+    const box = new THREE.Box3();
+    for (const l of sk.lines) for (const p of l.pts) box.expandByPoint(new THREE.Vector3(...p));
+    const size = box.getSize(new THREE.Vector3()).length();
+    box.expandByScalar(Math.max(10, size * 0.25));   // etwas Rand: man zeichnet auch neben die Linien
+    sketchPlanes.push({ name: sk.name, plane: new THREE.Plane().setFromNormalAndCoplanarPoint(x.clone().cross(y).normalize(), o), box });
+  }
   for (const sk of list || []) for (const l of sk.lines) {
     const g = new THREE.BufferGeometry().setFromPoints(l.pts.map((p) => new THREE.Vector3(...p)));
     const line = new THREE.Line(g, l.construction ? SKETCH_CONSTR_MAT : SKETCH_MAT);
@@ -175,8 +186,40 @@ function ndc(x, y) {
   return new THREE.Vector2((x / viewport.clientWidth) * 2 - 1, -(y / viewport.clientHeight) * 2 + 1);
 }
 
-function pick(x, y) {
+function pick(x, y, only = null) {
+  // only = Skizzenname: nur an dieser Skizze haften (ein Strich bleibt auf seiner Skizze).
   raycaster.setFromCamera(ndc(x, y), camera);
+  // 1. Skizzenlinie in Stiftnähe (≈ 12 px): Punkt genau auf der Linie.
+  if (sketchRoot.children.length) {
+    const dist = camera.position.distanceTo(controls.target);
+    const perPx = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / viewport.clientHeight;
+    raycaster.params.Line.threshold = perPx * 10;
+    // Die Linie, die dem Stift am nächsten ist (nicht die der Kamera am nächsten).
+    let lh = null, best = Infinity;
+    for (const h of raycaster.intersectObjects(sketchRoot.children.filter((o) => !only || o.name === only), false)) {
+      const d = raycaster.ray.distanceToPoint(h.point) / (perPx * Math.max(h.distance, 1e-6) / dist);
+      if (d < best) { best = d; lh = h; }
+    }
+    if (lh) {
+      const pl = sketchPlanes.find((s) => s.name === lh.object.name);
+      return { p: lh.point.clone(), n: pl ? pl.plane.normal.clone() : null, body: lh.object.name, on: 'skizze' };
+    }
+  }
+  // 2. Körper, sonst 3. Skizzenebene (innerhalb ihrer Ausdehnung), sonst Boden.
+  let planeHit = null;
+  for (const s of sketchPlanes) {
+    const v = new THREE.Vector3();
+    if (only && s.name !== only) continue;
+    if (!raycaster.ray.intersectPlane(s.plane, v) || (!only && !s.box.containsPoint(v))) continue;
+    const d = v.distanceTo(raycaster.ray.origin);
+    if (!planeHit || d < planeHit.d) planeHit = { d, p: v, s };
+  }
+  const onPlane = () => {
+    const n = planeHit.s.plane.normal.clone();
+    if (n.dot(raycaster.ray.direction) > 0) n.negate();
+    return { p: planeHit.p, n, body: planeHit.s.name, on: 'skizzenebene' };
+  };
+  if (only && planeHit) return onPlane();
   if (modelRoot) {
     const meshes = [];
     modelRoot.traverse((o) => { if (o.isMesh) meshes.push(o); });
@@ -186,9 +229,11 @@ function pick(x, y) {
       if (n && n.dot(raycaster.ray.direction) > 0) n.negate();
       let body = hit.object.name;
       for (let o = hit.object; o && o !== modelRoot; o = o.parent) if (o.name) { body = o.name; break; }
+      if (planeHit && planeHit.d < hit.distance - 0.01) return onPlane();
       return { p: hit.point.clone(), n, body, on: 'modell' };
     }
   }
+  if (planeHit) return onPlane();
   const g = new THREE.Vector3();
   if (raycaster.ray.intersectPlane(groundPlane, g) && g.distanceTo(camera.position) < camera.far) {
     return { p: g, n: new THREE.Vector3(0, 0, 1), body: null, on: 'boden' };
@@ -255,6 +300,14 @@ const widthFor = (pr) => 1 + 6 * Math.sqrt(Math.min(1, Math.max(0, pr)));
 function finishStroke(s) {
   if (s.pts.length < 2) s.pts.push([s.pts[0][0] + 0.5, s.pts[0][1] + 0.5]);
   s.anchors = s.pts.map(([x, y]) => pick(x, y));
+  // Liegt der Strich überwiegend auf einer Skizze, bleibt er ganz bei ihr (statt auf Linien anderer
+  // Skizzen zu springen, die sich im Bild kreuzen).
+  const votes = {};
+  for (const a of s.anchors) if (a.on === 'skizze' || a.on === 'skizzenebene') votes[a.body] = (votes[a.body] || 0) + 1;
+  const main = Object.entries(votes).sort((a, b) => b[1] - a[1])[0];
+  if (main && main[1] >= s.anchors.length / 3) {
+    s.anchors = s.anchors.map((a, i) => (a.body === main[0] || a.on === 'modell') ? a : pick(s.pts[i][0], s.pts[i][1], main[0]));
+  }
   s.cam = lastCamKey;
   const [x0, y0] = s.pts[0], [x1, y1] = s.pts[s.pts.length - 1];
   const len = s.pts.reduce((acc, p, i) => i ? acc + Math.hypot(p[0] - s.pts[i - 1][0], p[1] - s.pts[i - 1][1]) : 0, 0);
@@ -367,10 +420,11 @@ viewport.addEventListener('pointercancel', endPointer, true);
 function updateMarkInfo() {
   const n = strokes.length;
   const onModel = strokes.filter((s) => s.anchors?.some((a) => a.on === 'modell')).length;
+  const onSketch = strokes.filter((s) => s.anchors?.some((a) => a.on === 'skizze' || a.on === 'skizzenebene')).length;
   const byColor = {};
   for (const s of strokes) byColor[s.color.name] = (byColor[s.color.name] || 0) + 1;
   const colors = Object.keys(byColor).length > 1 ? ' (' + Object.entries(byColor).map(([c, k]) => `${k}× ${c}`).join(', ') + ')' : '';
-  $('#markinfo').textContent = n ? `${n} Strich${n > 1 ? 'e' : ''}${colors}${onModel ? `, ${onModel} auf dem Modell` : ''}` : '';
+  $('#markinfo').textContent = n ? `${n} Strich${n > 1 ? 'e' : ''}${colors}${onModel ? `, ${onModel} auf dem Modell` : ''}${onSketch ? `, ${onSketch} auf Skizzen` : ''}` : '';
 }
 
 const r3 = (v) => v ? v.toArray().map((c) => +c.toFixed(2)) : null;
@@ -384,7 +438,7 @@ function marksPayload() {
       farbe: s.color.name,
       art: s.closed ? 'geschlossen (eingekreist)' : 'offen',
       punkte_entlang: hits.map(fmt),
-      punkte_innen: s.inside.filter((a) => a.on === 'modell').map(fmt),
+      punkte_innen: s.inside.filter((a) => a.on !== 'boden' && a.on !== 'ansicht').map(fmt),
       bildschirm_box: bbox2d(s.pts),
     };
   });

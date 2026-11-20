@@ -26,7 +26,7 @@ Schnittstellen von SolidCraft: den Steuerkanal (`solidcraft --control PORT`) und
 | Sprachausgabe: Antworten vorlesen (lokal mit Piper), abschaltbar, Rückfragen per Sprache beantworten, Echo-Schutz | ✅ automatisch getestet (Tablet-Prüfung 🟡) |
 | Undo/Redo, „KI-Runde zurück“ | ✅ / 🟡 teilweise getestet |
 | Öffnen und Speichern am PC in SolidCraft, das Tablet folgt der offenen Datei (auch auf dem NAS) | ✅ getestet |
-| SolidCraft-Skizzen auf dem Tablet sichtbar (gelb, Hilfslinien gestrichelt) | ✅ geprüft |
+| SolidCraft-Skizzen auf dem Tablet sichtbar (gelb, Hilfslinien gestrichelt). Stiftstriche haften an Skizzenlinien und -ebenen, auch ohne Körper, und bleiben beim Drehen an ihrem Platz. | ✅ getestet |
 | S Pen: Druck → Strichbreite, Handballen-Erkennung, Stifttaste radiert, Stift zeichnet / Finger navigiert | ✅ automatisch getestet (Tablet-Prüfung 🟡) |
 | KI lokal über Ollama (Umschalter) | ⛔ experimentell, mit 8 GB Grafikspeicher nicht brauchbar |
 | Linienfarben: Farbe je Strich, Bedeutung legst du per Sprache/Text fest („grün ist eine Bohrung Ø 4“) | ✅ getestet (Tablet-Bedienung 🟡) |
@@ -50,8 +50,9 @@ Tablet (Firefox)                      PC
 
 - **Ansicht:** Nach jeder Änderung exportiert das Studio das Modell als GLB (`file.export`). Das Tablet
   zeigt es mit three.js in SolidCraft-Weltkoordinaten (mm, Z oben). Die App am PC zeigt dasselbe Modell.
-- **Stift:** Jeder Strichpunkt bekommt einen 3D-Anker. Das ist der Treffer am Modell mit
-  Flächennormale, sonst die Bodenebene Z = 0. Eingekreiste Bereiche werden innen abgetastet. Der Agent
+- **Stift:** Jeder Strichpunkt bekommt einen 3D-Anker: eine SolidCraft-Skizzenlinie in Stiftnähe
+  (≈ 10 px), sonst der Treffer am Modell mit Flächennormale oder an einer Skizzenebene, sonst die
+  Bodenebene Z = 0. Ein Strich bleibt bei der Skizze, auf der er überwiegend liegt. Eingekreiste Bereiche werden innen abgetastet. Der Agent
   bekommt das Bild der Ansicht mit den Strichen, die 3D-Punkte und die Kamera (`ui.camera`-Format).
   Er nutzt die Punkte als Picks für Kanten und Flächen.
 - **Agent:** Ein langlebiger `claude -p`-Prozess (stream-json). Er hat **keine** Shell und keinen

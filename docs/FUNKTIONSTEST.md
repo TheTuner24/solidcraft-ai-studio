@@ -137,7 +137,9 @@ PROJEKTE=/tmp/studio-test STUDIO_URL="$(cat /tmp/studio-test/.cache/studio-url.t
 
 Erwartung: Eine Runde nach dem letzten Speichern kommt mit Strichen, Farben, Druck, Blickwinkel
 (Abweichung < 2 px) und Text sofort zurück. Eine ältere Runde liegt nur unter „⤺ Skizze“ bereit.
-Runden im alten Format (nur 3D-Punkte) werden aus den Punkten nachgebildet.
+Runden im alten Format (nur 3D-Punkte) werden aus den Punkten nachgebildet. Teil 4: Eine senkrechte SolidCraft-Skizze ohne Körper ist auf
+dem Tablet sichtbar. Ein Strich entlang ihrer Linie haftet an ihr (`auf: skizze`) und liegt nach dem
+Drehen noch auf der Linie (< 3 px).
 
 ## Teil B – Prüfliste auf dem Tablet
 
