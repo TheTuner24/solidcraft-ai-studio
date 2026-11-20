@@ -5,7 +5,7 @@
 > Die Anforderungen stehen in [docs/AUFTRAG.md](docs/AUFTRAG.md), der Funktionstest in
 > [docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md).
 
-**Letzte Aktualisierung:** 20.11.2026 · **Version:** 0.2.0 · **Getestet mit:** SolidCraft 0.45.0 (vorher 0.44.1),
+**Letzte Aktualisierung:** 20.11.2026 · **Version:** 0.3.0 · **Getestet mit:** SolidCraft 0.45.0 (vorher 0.44.1),
 Claude Code 2.1.x, Firefox für Android, Chrome (Testautomatik), Linux (CachyOS), RTX 4060 8 GB,
 Galaxy Tab S8+
 
@@ -48,7 +48,7 @@ Galaxy Tab S8+
 | **Meilenstein 1, Schritte 1–9** | ✅ | automatischer Test `--full`, siehe Testprotokoll |
 | A: Freihand zeichnen | ✅ | |
 | A: Maße und Beschriftungen ergänzen | 🟡 | nur als Bild (handschriftlich) bzw. per Text/Sprache. Keine Handschrifterkennung, keine Bemaßungsobjekte |
-| A: Vorhandene Zeichnungen öffnen | 🟡 | `.sc` aus dem Studio-Ordner und dessen Elternordner. Originale werden als Kopie gespeichert. Nicht automatisch getestet. |
+| A: Vorhandene Zeichnungen öffnen | ✅ | **Am PC in SolidCraft** (jeder Ort, auch NAS). Das Tablet folgt der offenen Datei und bringt deren letzte Skizze mit. Öffnen, Neu und Speichern gibt es auf dem Tablet nicht mehr (Wunsch des Benutzers 20.11.: „alles andere ist verwirrend“). |
 | A: Fotos von Papierskizzen importieren | 📋 | |
 | A: Weiterarbeiten nach Neustart | ✅ | Beim Öffnen eines Projekts kommt die letzte Skizze zurück: mit Strichen, Farben, Druck und Blickwinkel. Ist die Runde neuer als die gespeicherte Datei, kommt sie samt Text direkt auf die Zeichenebene, sonst liegt sie unter „⤺ Skizze“ bereit. Ältere Runden ohne vollständige Striche werden aus den 3D-Punkten nachgebildet. Test A4, am Tablet noch nicht bedient. |
 | A: Korrigieren und löschen | ✅ | Radierer, „↩ Strich“, „✕ Alle“. „⤺ Skizze“ holt eine gesendete Skizze zum Korrigieren zurück, „KI-Runde“ nimmt die Änderung zurück und bringt die Skizze wieder (Wunsch aus dem Tablet-Test 20.11.). |
@@ -65,7 +65,7 @@ Galaxy Tab S8+
 | Vollbild, Werkzeugleiste, KI-Dialog, Undo/Redo | ✅ | |
 | MCP geprüft, gezielt erweitert | ✅ / – | Der vorhandene MCP-Server reicht bisher, SolidCraft musste nicht geändert werden. |
 | Unabhängig vom CAD-Kern | ✅ | Eigenständiges Repo, nur Steuerkanal und MCP |
-| Originale nicht überschreiben | 🟡 | implementiert (Kopie in den Studio-Ordner), nicht automatisch getestet |
+| Originale nicht überschreiben | ✅ | Das Studio speichert nie selbst, nur der Benutzer am PC |
 | Jede Änderung rückgängig | ✅ / 🟡 | Undo/Redo der App. „KI-Runde zurück“ über Checkpoint ist implementiert, nicht automatisch getestet. |
 | Agent nur mit vorgesehenen CAD-Funktionen | ✅ | Claude Code ohne eingebaute Werkzeuge, nur SolidCraft-MCP. save/export/open/new_design gesperrt, Pfade auf den Studio-Ordner begrenzt. |
 | Keine API-Schlüssel im Browser | ✅ | Claude Code nutzt die Anmeldung auf dem PC. |
@@ -90,6 +90,7 @@ Galaxy Tab S8+
 | 20.11.2026 | Skizze zurückholen: `--smoke` (Senden abgefangen, Skizze mit Farben und Blickwinkel zurück, sichtbar) | bestanden. Dazu Testkorrektur: vor der Handballen-Prüfung warten, bis die Kamera nach der Fingerdrehung stillsteht. |
 | 20.11.2026 | Skizze über Neustarts: `skizze_laden.mjs` (Test-Instanz), dazu `--smoke` und `--full` | bestanden (9 + alle Smoke-Prüfungen, Volltest 3 Runden exakt). Mit einer Kopie eines echten Projekts (altes Format) kam die Skizze mit 28 Strichen und Text zurück. |
 | 20.11.2026 | Update auf SolidCraft 0.45.0: `--smoke`, `skizze_laden.mjs`, `--full` (Test-Instanz), Projekt aus 0.44.1 öffnen | bestanden (Volltest 3 Runden exakt). Ein mit 0.44.1 gespeichertes Projekt öffnet samt Skizze. |
+| 20.11.2026 | Öffnen/Speichern am PC, Tablet folgt; Skizzen auf dem Tablet: `--smoke`, `skizze_laden.mjs`, `--full` (Test-Instanz mit eigenem HOME) | bestanden. Volltest: Neu und Speichern über SolidCraft, 3 Runden exakt, Runden wandern zur gespeicherten Datei. Skizzen: Kopie eines echten Bauteils mit 4 Skizzen, 18 Linien auf dem Tablet (Bild geprüft). |
 | 20.11.2026 | **Praxistest auf dem Galaxy Tab S8+ durch den Benutzer** | Druck ✅, Handballen ✅, Drehen/Zoomen ✅, mehrere Farben mit verschiedenen Anweisungen ✅, Sprachausgabe ✅, **Radieren mit S-Pen-Taste ❌** (radiert nicht). Rest der Prüfliste noch offen. |
 | 19.11.2026 | Abschnitt Sprache: `--full` (4 Läufe) | Ergebnisse der KI immer exakt, Antwort wird vorgelesen. Strichfehler in Runde 2 in 3 Läufen, nach der Umstellung auf die CPU-Leinwand 2/2 bestanden |
 | 19.11.2026 | Abschnitt Linienfarben: `--full` mit Runde 3 (zwei Farben, zwei Aufgaben, Legende aus dem Text) | bestanden. Runde 3: 11 621 mm³ (Soll 11 621), Legende `{"grün":"Bohrung Ø 4 durchgehend","violett":"Fase 2 mm"}` |
@@ -117,7 +118,11 @@ Alle Prüfungen bestanden.
 
 - Nach einem Neustart des Studios beginnt der Agent ein neues Gespräch, das Modell bleibt erhalten.
 - Alle verbundenen Oberflächen teilen sich einen Agenten. Gedacht ist ein Tablet zur Zeit.
-- Die Tablet-Ansicht ist ein Netz-Export (GLB): keine Skizzen, Achsen oder Bemaßungen aus SolidCraft.
+- Die Tablet-Ansicht ist ein Netz-Export (GLB) plus die sichtbaren SolidCraft-Skizzen als Linien (über das
+  lesende `sketch.inspect`). Bemaßungen und Bedingungen werden nicht gezeigt. Splines erscheinen als
+  Polylinie durch ihre Punkte.
+- Speichern unter neuem Namen am PC erkennt das Studio daran, dass der Änderungsverlauf (Undo-Tiefe)
+  gleich bleibt. Dann wandern die Rundenprotokolle mit. Öffnen beginnt in SolidCraft bei Undo 0.
 - `faster-whisper` 1.2.1 verträgt PyAV ≥ 15 nicht beim Dateiöffnen. Das Studio dekodiert deshalb selbst
   (`stt.py::_decode`).
 - Firefox für Android schickt ein `SameSite=Strict`-Cookie nach einem aus einer App geöffneten Redirect

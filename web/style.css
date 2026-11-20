@@ -70,14 +70,6 @@ main { flex: 1; display: flex; min-height: 0; }
 #send { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 12px 22px; font-size: 16px; }
 #send:disabled { opacity: .5; }
 
-dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px;
-  width: min(640px, 90vw); max-height: 80vh; }
-dialog::backdrop { background: #0009; }
-#files { list-style: none; padding: 0; max-height: 55vh; overflow-y: auto; }
-#files li button { width: 100%; text-align: left; padding: 12px; margin: 3px 0; background: var(--panel2);
-  color: var(--text); border: 0; border-radius: 8px; font-size: 16px; }
-#files small { color: var(--muted); margin-left: 8px; }
-dialog form > button { padding: 10px 18px; font-size: 15px; }
 .note { color: var(--muted); font-size: 13px; }
 #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #000d; padding: 10px 16px;
   border-radius: 10px; z-index: 10; font-size: 15px; max-width: 80vw; }

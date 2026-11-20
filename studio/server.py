@@ -15,6 +15,7 @@ from aiohttp import WSMsgType, web
 
 from .agent import Agent
 from .local_agent import LocalAgent
+from .sketches import sketch_polylines
 from .solidcraft import ControlClient, ControlError
 from .stt import SpeechToText
 from .tts import TextToSpeech
@@ -23,11 +24,6 @@ log = logging.getLogger("studio")
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
-
-
-def safe_name(name: str) -> str:
-    name = re.sub(r"[^\w\- ]+", "", name, flags=re.UNICODE).strip().replace(" ", "_")
-    return name[:60] or "Bauteil"
 
 
 class Studio:
@@ -55,7 +51,11 @@ class Studio:
         self._export_pending = False
         self.turn_checkpoints: list[str] = []
         self.turn_no = 0
-        self.project_path: Path | None = None   # Datei im Studio-Ordner, in die gespeichert wird
+        self.project_path: Path | None = None   # am PC in SolidCraft offene Datei (None = noch ungespeichert)
+        self._doc_known = False                  # schon ein Dokument gesehen?
+        self._doc_undo = 0                       # Undo-Tiefe beim letzten Blick: unterscheidet Speichern von Öffnen
+        self._doc_dirty = None
+        self._send_last_sketch = False
         self.log_lines: list[dict] = []          # Verlauf für neu verbundene Tablets
         self.legend: dict[str, str] = {}         # Farbe → Bedeutung, vom Benutzer festgelegt
 
@@ -113,23 +113,79 @@ class Studio:
                 if not self.watch.connected:
                     self.watch.on_event = self._on_sc_event
                     info = await self.watch.call("control.subscribe")
-                    await self._adopt_open_design()
                     await self._design_changed(info)
                     log.info("Mit SolidCraft verbunden (Port %s)", self.control_port)
+                else:
+                    await self._poll_document()
             except (OSError, ControlError) as e:
                 log.warning("SolidCraft nicht erreichbar: %s", e)
                 await self.broadcast({"type": "status", "solidcraft": False, "text": str(e)})
             await asyncio.sleep(3)
 
-    async def _adopt_open_design(self) -> None:
-        """Nach einem Neustart des Studios: ein schon offenes Studio-Projekt weiterverwenden."""
-        if self.project_path:
-            return
+    async def _poll_document(self) -> None:
+        """Öffnen und Speichern passieren am PC. Ein anderes Dokument oder ein neuer Speicherstand löst
+        sofort einen Abgleich aus, auch wenn SolidCraft dafür kein Änderungsereignis schickt."""
         doc = await self.sc.call("document.inspect", {"timeline": False, "bodies": False})
         path = Path(doc["path"]).resolve() if doc.get("path") else None
-        if path and path.parent == self.projects_dir.resolve():
-            self.project_path = path
-            self._load_legend()
+        if not self._doc_known or path != self.project_path or doc.get("dirty") != self._doc_dirty:
+            await self.schedule_export()
+
+    async def _follow_document(self, doc: dict) -> None:
+        """Das Studio folgt der Datei, die am PC in SolidCraft offen ist."""
+        path = Path(doc["path"]).resolve() if doc.get("path") else None
+        undo = int(doc.get("undo") or 0)
+        self._doc_dirty = doc.get("dirty")
+        if self._doc_known and path == self.project_path:
+            self._doc_undo = undo
+            return
+        first = not self._doc_known
+        self._doc_known = True
+        # Speichern (unter neuem Namen) behält den Änderungsverlauf, Öffnen beginnt bei null.
+        same_design = not first and undo > 0 and undo == self._doc_undo
+        old_rounds = self._session_dir if hasattr(self, "_session_dir") else \
+            (self.project_path.with_suffix(".studio") if self.project_path else None)
+        self.project_path = path
+        self._doc_undo = undo
+        if same_design and path and old_rounds and old_rounds.exists():
+            self._carry_rounds(old_rounds, path.with_suffix(".studio"))
+            log.info("Gespeichert am PC: %s", path)
+            return
+        if same_design:
+            return
+        log.info("Am PC geöffnet: %s", path or "neues, ungespeichertes Bauteil")
+        if hasattr(self, "_session_dir"):
+            del self._session_dir
+        self._load_legend()
+        self.turn_checkpoints.clear()
+        self.turn_no = 0
+        if not first:
+            await self.agent.reset()
+            self.log_lines.clear()
+        await self.broadcast({"type": "reset"})
+        await self.broadcast({"type": "legend", "legend": self.legend})
+        self._send_last_sketch = True
+
+    def _carry_rounds(self, src: Path, dst: Path) -> None:
+        """Rundenprotokolle zum neuen Speicherort mitnehmen (ungespeichert: verschieben, sonst kopieren)."""
+        import shutil
+        try:
+            if src.resolve() == dst.resolve():
+                return
+            dst.mkdir(parents=True, exist_ok=True)
+            n0 = max(self._turn_numbers(dst), default=0)
+            for f in sorted(src.iterdir()):
+                m = re.fullmatch(r"runde-(\d+)\.(json|jpeg|png)", f.name)
+                target = dst / (f"runde-{int(m.group(1)) + n0:03d}.{m.group(2)}" if m else f.name)
+                if f.name == "farblegende.json" and target.exists():
+                    continue
+                (shutil.move if hasattr(self, "_session_dir") else shutil.copy2)(str(f), str(target))
+            if hasattr(self, "_session_dir"):
+                src.rmdir()
+                if not any(src.parent.iterdir()):
+                    src.parent.rmdir()
+                del self._session_dir
+        except OSError as e:
+            log.warning("Rundenprotokolle nicht übernommen: %s", e)
 
     async def _on_sc_event(self, name: str, params: dict) -> None:
         if name == "design.changed":
@@ -158,6 +214,7 @@ class Studio:
     async def _export_model(self) -> None:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         doc = await self.sc.call("document.inspect", {"timeline": "summary", "bodies": "names"})
+        await self._follow_document(doc)
         bodies = doc.get("bodies") or []
         self.model_rev += 1
         out = self.cache_dir / "model.glb"
@@ -167,6 +224,7 @@ class Studio:
             tmp.replace(out)
         elif out.exists():
             out.unlink()
+        sketches = await self._sketch_lines()
         await self.broadcast({
             "type": "model", "rev": self.model_rev, "empty": not bodies,
             "name": doc.get("name"), "dirty": doc.get("dirty"),
@@ -174,7 +232,33 @@ class Studio:
             "timeline": [{"name": f.get("name"), "type": f.get("type"), "error": f.get("error")}
                          for f in doc.get("timeline") or []],
             "project": str(self.project_path) if self.project_path else None,
+            "sketches": sketches,
         })
+        if self._send_last_sketch:
+            self._send_last_sketch = False
+            if (last := self.last_sketch()):
+                await self.broadcast(last)
+
+    async def _sketch_lines(self) -> list[dict]:
+        """Sichtbare Skizzen als 3D-Linien (der GLB-Export enthält nur Körper)."""
+        try:
+            doc = await self.sc.call("document.inspect", {"timeline": False, "bodies": False, "sketches": True})
+        except ControlError as e:
+            log.warning("Skizzen nicht lesbar: %s", e)
+            return []
+        out = []
+        for sk in doc.get("sketches") or []:
+            if not sk.get("visible", True):
+                continue
+            try:
+                si = await self.sc.execute("sketch.inspect", {"sketch": sk.get("name") or sk.get("id")})
+            except ControlError as e:
+                log.warning("Skizze %s nicht lesbar: %s", sk.get("name"), e)
+                continue
+            lines = sketch_polylines(si)
+            if lines:
+                out.append({"name": sk.get("name"), "lines": lines})
+        return out
 
     # ---------- Agent ----------
 
@@ -346,32 +430,8 @@ class Studio:
             elif t == "camera":
                 cam = data.get("camera") or {}
                 await self.sc.call("ui.camera", {k: cam[k] for k in ("target", "yaw", "pitch", "distance") if k in cam})
-            elif t == "new":
-                self._require_idle()
-                await self.sc.execute("file.new", {"name": data.get("name") or "Neues Bauteil"})
-                self.project_path = None
-                self.legend = {}
-                self.turn_checkpoints.clear()
-                self.turn_no = 0
-                if hasattr(self, "_session_dir"):
-                    del self._session_dir
-                await self.agent.reset()
-                self.log_lines.clear()
-                await self.broadcast({"type": "reset"})
-                await self.broadcast(self.backend_info())
-                await self.broadcast({"type": "legend", "legend": self.legend})
-            elif t == "save":
-                self._require_idle()
-                path = await self.save(data.get("name"))
-                await self.broadcast({"type": "saved", "path": str(path)})
-                await self.schedule_export()
             elif t == "backend":
                 await self.set_backend(data.get("mode", ""))
-            elif t == "list":
-                await ws.send_json({"type": "files", "files": self.list_designs()})
-            elif t == "open":
-                self._require_idle()
-                await self.open_copy(data.get("path", ""))
             else:
                 raise ValueError(f"Unbekannter Befehl {t!r}")
         except (ValueError, RuntimeError, ControlError) as e:
@@ -384,61 +444,6 @@ class Studio:
     async def agent_note(self, text: str) -> None:
         """Hält den Agenten auf dem Laufenden, ohne eine Runde auszulösen (beim nächsten Prompt)."""
         self._pending_note = text
-
-    async def save(self, name: str | None) -> Path:
-        """Speichert nur in den Studio-Ordner; Originaldateien werden nie überschrieben."""
-        if self.project_path and not name:
-            await self.sc.execute("file.save", {"path": str(self.project_path)})
-            return self.project_path
-        doc = await self.sc.call("document.inspect", {"timeline": False, "bodies": False})
-        base = safe_name(name or doc.get("name") or "Bauteil")
-        path = self.projects_dir / f"{base}.sc"
-        if path.exists() and path != self.project_path:
-            path = self.projects_dir / f"{base}_{datetime.now():%Y%m%d-%H%M%S}.sc"
-        await self.sc.execute("file.save_as", {"path": str(path)})
-        old_turns = self._session_dir if hasattr(self, "_session_dir") else None
-        self.project_path = path
-        if old_turns and old_turns.exists():
-            target = path.with_suffix(".studio")
-            target.mkdir(parents=True, exist_ok=True)
-            for f in old_turns.iterdir():
-                f.rename(target / f.name)
-            old_turns.rmdir()
-            if not any(old_turns.parent.iterdir()):
-                old_turns.parent.rmdir()
-            del self._session_dir
-        return path
-
-    def list_designs(self) -> list[dict]:
-        roots = [self.projects_dir, self.projects_dir.parent]
-        seen, out = set(), []
-        for root in roots:
-            for p in sorted(root.glob("*.sc"), key=lambda p: p.stat().st_mtime, reverse=True):
-                if p in seen:
-                    continue
-                seen.add(p)
-                out.append({"path": str(p), "name": p.stem, "studio": p.parent == self.projects_dir,
-                            "mtime": int(p.stat().st_mtime)})
-        return out[:50]
-
-    async def open_copy(self, path_str: str) -> None:
-        path = Path(path_str).resolve()
-        allowed = {self.projects_dir.resolve(), self.projects_dir.parent.resolve()}
-        if path.suffix != ".sc" or path.parent not in allowed or not path.is_file():
-            raise ValueError("Diese Datei kann das Studio nicht öffnen.")
-        await self.sc.execute("doc.open", {"path": str(path)})
-        # Dateien außerhalb des Studio-Ordners gelten als Original: gespeichert wird als Kopie.
-        self.project_path = path if path.parent == self.projects_dir.resolve() else None
-        self._load_legend()
-        await self.broadcast({"type": "legend", "legend": self.legend})
-        self.turn_checkpoints.clear()
-        await self.agent.reset()
-        self.log_lines.clear()
-        self.turn_no = 0
-        await self.broadcast({"type": "reset"})
-        await self.schedule_export()
-        if (last := self.last_sketch()):
-            await self.broadcast(last)
 
     # ---------- Web ----------
 

@@ -24,7 +24,9 @@ Schnittstellen von SolidCraft: den Steuerkanal (`solidcraft --control PORT`) und
 | Modell auf dem Tablet drehen/zoomen, Ansicht aktualisiert sich nach jeder Änderung | ✅ getestet |
 | Spracheingabe (lokal mit Whisper, Text landet im Eingabefeld) | ✅ getestet (auch auf dem Tablet) |
 | Sprachausgabe: Antworten vorlesen (lokal mit Piper), abschaltbar, Rückfragen per Sprache beantworten, Echo-Schutz | ✅ automatisch getestet (Tablet-Prüfung 🟡) |
-| Undo/Redo, „KI-Runde zurück“, Speichern ohne Originale zu überschreiben | ✅ / 🟡 teilweise getestet |
+| Undo/Redo, „KI-Runde zurück“ | ✅ / 🟡 teilweise getestet |
+| Öffnen und Speichern am PC in SolidCraft, das Tablet folgt der offenen Datei (auch auf dem NAS) | ✅ getestet |
+| SolidCraft-Skizzen auf dem Tablet sichtbar (gelb, Hilfslinien gestrichelt) | ✅ geprüft |
 | S Pen: Druck → Strichbreite, Handballen-Erkennung, Stifttaste radiert, Stift zeichnet / Finger navigiert | ✅ automatisch getestet (Tablet-Prüfung 🟡) |
 | KI lokal über Ollama (Umschalter) | ⛔ experimentell, mit 8 GB Grafikspeicher nicht brauchbar |
 | Linienfarben: Farbe je Strich, Bedeutung legst du per Sprache/Text fest („grün ist eine Bohrung Ø 4“) | ✅ getestet (Tablet-Bedienung 🟡) |
@@ -80,9 +82,11 @@ Tablet (Firefox)                      PC
   - API-Schlüssel gibt es weder im Browser noch im Dienst: Claude Code nutzt die eigene Anmeldung am PC.
 - **Nichts geht verloren:**
   - Vor jeder KI-Runde setzt das Studio einen Checkpoint (`edit.checkpoint`).
-  - Gespeichert wird nur im Studio-Ordner (Standard `~/CAD/ai-studio/`). Geöffnete Originale werden
-    als Kopie gespeichert.
-  - Jede Runde (Bild, Text, Striche, 3D-Punkte, Kamera) wird in `<Projekt>.studio/` abgelegt.
+  - Öffnen, Neu und Speichern machst du **am PC in SolidCraft**, auch direkt auf dem NAS. Das Tablet
+    folgt der dort offenen Datei, es öffnet und speichert selbst nichts.
+  - Jede Runde (Bild, Text, Striche, 3D-Punkte, Kamera) wird neben der Datei in `<Datei>.studio/`
+    abgelegt, vor dem ersten Speichern in `~/CAD/ai-studio/sitzungen/`. Beim Speichern am PC wandern
+    die Runden mit.
 
 ## Installation und Start
 
@@ -140,7 +144,7 @@ SolidCraft vom Skript gestartet, endet das Studio mit SolidCraft.
 | Farbpunkt in der Leiste | Strichfarbe wählen. Unter dem Punkt steht die Bedeutung, die du der KI genannt hast. |
 | Stifttaste gedrückt, Radiererende oder Werkzeug „Radierer“ | Striche radieren |
 | ↩ Strich / ✕ Alle | letzten Strich bzw. alle Striche entfernen |
-| ⤺ Skizze | zuletzt gesendete Skizze samt Blickwinkel zurückholen, korrigieren und neu senden. „KI-Runde“ holt sie automatisch zurück. Auch nach einem Neustart: Beim Öffnen eines Projekts liegt die letzte Skizze hier bereit. War die letzte Runde noch nicht gespeichert, kommen Skizze und Text sofort zurück. |
+| ⤺ Skizze | zuletzt gesendete Skizze samt Blickwinkel zurückholen, korrigieren und neu senden. „KI-Runde“ holt sie automatisch zurück. Auch nach einem Neustart: Öffnest du am PC eine Datei, liegt ihre letzte Skizze hier bereit. War die letzte Runde noch nicht gespeichert, kommen Skizze und Text sofort zurück. |
 | ein Finger | Modell drehen |
 | zwei Finger | zoomen und verschieben |
 | Maus am PC | links zeichnen, rechts drehen, Mitte verschieben, Rad zoomen |
@@ -151,6 +155,7 @@ SolidCraft vom Skript gestartet, endet das Studio mit SolidCraft.
 | KI-Runde | letzte KI-Änderung komplett zurücknehmen |
 | An PC | SolidCraft übernimmt die Kamera des Tablets |
 | Online / Lokal | KI über Claude oder über ein lokales Ollama-Modell |
+| Dateiname oben rechts | die am PC offene Datei, • = ungespeicherte Änderungen (am PC speichern) |
 
 ## Funktionstest
 

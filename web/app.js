@@ -39,6 +39,21 @@ controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
 let modelRoot = null;
+// SolidCraft-Skizzen als Linien (der GLB-Export enthält nur Körper). Hilfslinien gestrichelt.
+const sketchRoot = new THREE.Group();
+scene.add(sketchRoot);
+const SKETCH_MAT = new THREE.LineBasicMaterial({ color: 0xffd23f, depthTest: false, transparent: true, opacity: 0.95 });
+const SKETCH_CONSTR_MAT = new THREE.LineDashedMaterial({ color: 0x9aa6b8, dashSize: 2, gapSize: 1.5, depthTest: false, transparent: true, opacity: 0.7 });
+function renderSketches(list) {
+  for (const o of [...sketchRoot.children]) { sketchRoot.remove(o); o.geometry.dispose(); }
+  for (const sk of list || []) for (const l of sk.lines) {
+    const g = new THREE.BufferGeometry().setFromPoints(l.pts.map((p) => new THREE.Vector3(...p)));
+    const line = new THREE.Line(g, l.construction ? SKETCH_CONSTR_MAT : SKETCH_MAT);
+    if (l.construction) line.computeLineDistances();
+    line.renderOrder = 2; line.name = sk.name;
+    sketchRoot.add(line);
+  }
+}
 let firstModel = true;
 const loader = new GLTFLoader();
 
@@ -68,6 +83,7 @@ function animate() {
 function modelBox() {
   const box = new THREE.Box3();
   if (modelRoot) box.setFromObject(modelRoot);
+  if (sketchRoot.children.length) box.expandByObject(sketchRoot);
   return box;
 }
 
@@ -120,7 +136,7 @@ function setModel(root) {
   }
   modelRoot = root;
   if (root) scene.add(root);
-  if (root && firstModel) { firstModel = false; fitView(VIEW_ISO.clone()); }
+  if (firstModel && (root || sketchRoot.children.length)) { firstModel = false; fitView(VIEW_ISO.clone()); }
   if (pendingSketch) { const m = pendingSketch; pendingSketch = null; applyLastSketch(m); }
   reanchorStrokes();
 }
@@ -415,8 +431,10 @@ function handle(m) {
       setBusy(m.busy);
       break;
     case 'model':
-      if (m.rev !== lastModelRev) { lastModelRev = m.rev; loadModel(m.rev, m.empty); }
-      $('#docname').textContent = (m.project ? m.project.split('/').pop() : m.name || '–') + (m.dirty ? ' •' : '');
+      if (m.rev !== lastModelRev) { lastModelRev = m.rev; renderSketches(m.sketches); loadModel(m.rev, m.empty); }
+      // Öffnen und Speichern passieren am PC; hier steht, was dort offen ist.
+      $('#docname').textContent = (m.project ? m.project.split('/').pop() : `${m.name || 'Neues Bauteil'} (ungespeichert)`) + (m.dirty ? ' •' : '');
+      $('#docname').title = m.project ? `${m.project}${m.dirty ? ' – ungespeicherte Änderungen, am PC speichern' : ''}` : 'Noch nicht gespeichert: am PC in SolidCraft speichern';
       $('#undo').disabled = !m.undo; $('#redo').disabled = !m.redo;
       break;
     case 'agent':
@@ -425,10 +443,8 @@ function handle(m) {
     case 'busy': setBusy(m.busy); if (!m.busy) { drawStrokes(); maybeAutoListen(); } break;
     case 'caps': caps = { stt: m.stt, tts: m.tts }; updateVoiceUi(); break;
     case 'status': if (m.solidcraft === false) toast('SolidCraft nicht erreichbar: ' + m.text); break;
-    case 'saved': toast('Gespeichert: ' + m.path); break;
     case 'error': toast(m.text); break;
     case 'reset': if (autoText && $('#text').value === autoText) $('#text').value = ''; autoText = null; $('#log').innerHTML = ''; firstModel = true; strokes = []; lastSent = null; $('#restore').disabled = true; drawStrokes(); break;
-    case 'files': showFiles(m.files); break;
     case 'last_sketch':
       // Erst anwenden, wenn das Modell geladen ist (sonst setzt die erste Ansicht die Kamera zurück).
       if (modelRoot && !firstModel) applyLastSketch(m); else pendingSketch = m;
@@ -475,7 +491,7 @@ function setBusy(b) {
   busy = b;
   $('#busy').hidden = !b;
   $('#send').disabled = b;
-  for (const id of ['#revert', '#new', '#open', '#save', '#backend']) $(id).disabled = b;
+  for (const id of ['#revert', '#backend']) $(id).disabled = b;
   if (b) { $('#undo').disabled = true; $('#redo').disabled = true; }
 }
 
@@ -773,34 +789,15 @@ $('#fit').onclick = () => fitView();
 $('#top').onclick = () => fitView(VIEW_TOP.clone());
 $('#iso').onclick = () => fitView(VIEW_ISO.clone());
 $('#topc').onclick = () => { send({ type: 'camera', camera: scCamera() }); toast('Ansicht an PC übergeben'); };
-$('#new').onclick = () => {
-  const name = prompt('Name des neuen Bauteils:', 'Neues Bauteil');
-  if (name !== null) send({ type: 'new', name });
-};
-$('#open').onclick = () => send({ type: 'list' });
 $('#backend').onclick = () => {
   const local = $('#backend').classList.contains('lokal');
   if (confirm(local ? 'Auf Online (Claude) umschalten? Das Gespräch mit dem Agenten beginnt neu.'
                     : 'Auf Lokal (Ollama) umschalten? Das Gespräch mit dem Agenten beginnt neu.'))
     send({ type: 'backend', mode: local ? 'online' : 'lokal' });
 };
-$('#save').onclick = () => send({ type: 'save' });
 $('#stop').onclick = () => send({ type: 'stop' });
 $('#fullscreen').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
 
-function showFiles(files) {
-  const ul = $('#files'); ul.innerHTML = '';
-  if (!files.length) ul.innerHTML = '<li class="note">Keine .sc-Dateien in ~/CAD gefunden.</li>';
-  for (const f of files) {
-    const li = document.createElement('li');
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.innerHTML = `${f.name}<small>${f.studio ? 'Studio' : 'Original → Kopie'} · ${new Date(f.mtime * 1000).toLocaleString('de-DE')}</small>`;
-    b.onclick = () => { send({ type: 'open', path: f.path }); $('#filedlg').close(); };
-    li.append(b); ul.append(li);
-  }
-  $('#filedlg').showModal();
-}
 
 let toastTimer;
 function toast(text) {
@@ -812,6 +809,7 @@ function toast(text) {
 window.studioDebug = { worldToScreen: (x, y, z) => project(new THREE.Vector3(x, y, z)), state: () => ({ strokes: strokes.length, current: !!current, tool, color: color.name, legend,
     strokeColors: strokes.map((s) => s.color.name), pressures: strokes.map((s) => s.pr) }),
   marks: () => marksPayload(),
+  sketchLines: () => sketchRoot.children.length,
   sketch: () => sketchPayload(),
   strokeScreens: () => strokes.map((s) => s.anchors.map((a) => project(a.p).slice(0, 2))),
   text: () => document.querySelector('#text').value,

@@ -88,6 +88,10 @@ Für die Sprachprüfungen startet Chrome mit einer **Mikrofon-Attrappe**, die
 mit Piper erzeugt). Spracheingabe und -ausgabe müssen im Studio aktiv sein, also nicht `--no-speech`
 oder `--no-voice`.
 
+**Hinweis:** Die Test-Instanz von SolidCraft mit eigenem `HOME` (und `XDG_*`) starten. Sonst stellt
+die Arbeitssitzung beim nächsten Start das Testdokument wieder her. Danach das Token aus
+`$HOME/.local/share/solidcraft/control/7980.token` der Test-Instanz an den normalen Ort kopieren.
+
 ### A3. Volltest mit KI (verbraucht Claude-Kontingent, etwa 1 Minute)
 
 Der Volltest legt mit „Neu“ ein neues Bauteil an. Er soll deshalb gegen eine **eigene Test-Instanz**
@@ -98,7 +102,7 @@ mkdir -p /tmp/studio-test
 solidcraft --control 7980 &
 uv run python -m studio --control-port 7980 --port 8766 --projects /tmp/studio-test &
 cd tests/funktionstest
-STUDIO_URL="$(cat /tmp/studio-test/.cache/studio-url.txt)" CONTROL_PORT=7980 npm run full
+PROJEKTE=/tmp/studio-test STUDIO_URL="$(cat /tmp/studio-test/.cache/studio-url.txt)" CONTROL_PORT=7980 npm run full
 ```
 
 Ablauf:
@@ -113,7 +117,8 @@ Ablauf:
 8. **Prüfung:** Volumen ≈ 11 621 mm³ (Bohrung und Fase in einer Runde). Die Legende enthält grün und
    violett, die Steuerzeile ist im Dialog ausgeblendet, die Palette zeigt die Bedeutung.
 9. Nach jeder Runde: Die Zeichenebene ist leer.
-10. Speichern: `Funktionstest.sc` im Projektordner
+10. Am PC speichern (über den Steuerkanal, `PROJEKTE` = Projektordner der Test-Instanz): Das Tablet zeigt
+    `Funktionstest.sc`, die 3 Runden liegen in `Funktionstest.studio/`
 
 Die Prüfung misst das Volumen der echten Geometrie in SolidCraft, sie verlässt sich nicht auf die
 Antwort der KI. Bilder der Ansicht landen in `tests/funktionstest/ergebnis/`. `SICHTBAR=1` zeigt
@@ -121,8 +126,9 @@ den Browser.
 
 ### A4. Skizze über Neustarts (ohne KI, nur Test-Instanz)
 
-Prüft, dass ein geöffnetes Projekt seine letzte Skizze zurückbringt. Der Test legt in der Test-Instanz
-das Bauteil `SkizzeLaden.sc` an und öffnet es mehrmals, deshalb nie gegen die Arbeitssitzung:
+Prüft, dass eine am PC geöffnete Datei ihre letzte Skizze aufs Tablet bringt. Der Test legt in der
+Test-Instanz das Bauteil `SkizzeLaden.sc` an und öffnet es mehrmals in SolidCraft, deshalb nie gegen die
+Arbeitssitzung:
 
 ```bash
 cd tests/funktionstest
@@ -151,7 +157,7 @@ Beim ersten Mal den Link mit `?t=…` öffnen, danach merkt sich Firefox den Zug
 | B8 | „KI-Runde“ antippen, bestätigen | letzte KI-Änderung ist komplett zurückgenommen | 🟡 |
 | B9 | Undo / Redo | einzelne CAD-Schritte zurück/vor | 🟡 |
 | B10 | „An PC“ | SolidCraft am PC zeigt dieselbe Ansicht | 🟡 |
-| B11 | Speichern | Meldung „Gespeichert: …/Name.sc“, Punkt • neben dem Namen verschwindet | ✅ (automatisch) |
+| B11 | Am PC in SolidCraft speichern | Tablet zeigt den Dateinamen, Punkt • verschwindet | ✅ (automatisch) |
 | B12 | Kabel ziehen, wieder einstecken | nach wenigen Sekunden wieder verbunden (Seite neu laden) | 🟡 |
 | B14 | Eine Frage stellen, auf die die KI zurückfragt (z. B. „Mach eine Bohrung“ ohne Maß) | Rückfrage wird vorgelesen, danach geht 🎤 von selbst an. Antwort sprechen, sie steht im Feld. | 🟡 (Tablet), ✅ automatisch |
 | B15 | Während des Vorlesens 🎤 antippen | Vorlesen stoppt sofort, Aufnahme läuft | 🟡 (Tablet), ✅ automatisch |

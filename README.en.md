@@ -25,7 +25,9 @@ updates can be taken without merging.
 | Rotate/zoom the model on the tablet, view refreshes after every change | ✅ tested |
 | Voice input (local Whisper, recognised text goes into the input box) | ✅ tested (also on the tablet) |
 | Voice output: answers read aloud (local Piper), can be switched off, answer questions by voice, echo protection | ✅ tested automatically (tablet check 🟡) |
-| Undo/redo, "revert AI turn", saving without overwriting originals | ✅ / 🟡 partly tested |
+| Undo/redo, "revert AI turn" | ✅ / 🟡 partly tested |
+| Open and save on the PC in SolidCraft, the tablet follows the open file (also on a NAS) | ✅ tested |
+| SolidCraft sketches visible on the tablet (yellow, construction lines dashed) | ✅ checked |
 | S Pen: pressure → line width, palm rejection, pen button erases, pen draws / finger navigates | ✅ tested automatically (tablet check 🟡) |
 | Local AI via Ollama (toggle) | ⛔ experimental, not usable with 8 GB VRAM |
 | Line colours: colour per stroke, you define the meaning by voice/text ("green is a Ø 4 hole") | ✅ tested (tablet use 🟡) |
@@ -82,9 +84,10 @@ Tablet (Firefox)                      PC
   - There are no API keys in the browser or the service: Claude Code uses its own login on the PC.
 - **Nothing gets lost:**
   - A checkpoint (`edit.checkpoint`) is set before every AI turn.
-  - Saving only goes to the studio folder (default `~/CAD/ai-studio/`). Opened originals are saved
-    as copies.
-  - Every turn (picture, text, strokes, 3D points, camera) is kept in `<project>.studio/`.
+  - You open, create and save files **on the PC in SolidCraft**, also directly on a NAS. The tablet
+    follows the file open there; it never opens or saves anything itself.
+  - Every turn (picture, text, strokes, 3D points, camera) is kept next to the file in `<file>.studio/`,
+    before the first save in `~/CAD/ai-studio/sitzungen/`. Saving on the PC takes the turns along.
 
 ## Install and run
 
@@ -138,7 +141,7 @@ studio: only the studio starts SolidCraft with the control channel and the table
 | colour dot in the toolbar | choose the stroke colour. The meaning you gave the AI is shown below it. |
 | pen button held, eraser end or "Radierer" tool | erase strokes |
 | ↩ Strich / ✕ Alle | remove the last stroke / all strokes |
-| ⤺ Skizze | bring back the last sent sketch with its view angle, correct it and send again. "KI-Runde" brings it back automatically. Also after a restart: opening a project offers its last sketch here. If the last turn was not saved yet, sketch and text come back right away. |
+| ⤺ Skizze | bring back the last sent sketch with its view angle, correct it and send again. "KI-Runde" brings it back automatically. Also after a restart: when you open a file on the PC, its last sketch is offered here. If the last turn was not saved yet, sketch and text come back right away. |
 | one finger | rotate the model |
 | two fingers | zoom and pan |
 | mouse on the PC | left draws, right rotates, middle pans, wheel zooms |

@@ -35,9 +35,6 @@
     <button id="backend" title="KI umschalten: Online (Claude) oder Lokal (Ollama)">☁<span>Online</span></button>
   </div>
   <div class="group" role="group" aria-label="Projekt">
-    <button id="new" title="Neues Bauteil">＋<span>Neu</span></button>
-    <button id="open" title="Bauteil öffnen">📂<span>Öffnen</span></button>
-    <button id="save" title="Im Studio-Ordner speichern">💾<span>Speichern</span></button>
     <button id="fullscreen" title="Vollbild">⛶<span>Vollbild</span></button>
   </div>
   <div id="status"><span id="conn" class="dot"></span><span id="docname">–</span></div>
@@ -62,14 +59,6 @@
     </form>
   </aside>
 </main>
-<dialog id="filedlg">
-  <form method="dialog">
-    <h2>Bauteil öffnen</h2>
-    <p class="note">Dateien aus ~/CAD werden als Kopie im Studio-Ordner gespeichert, das Original bleibt unverändert.</p>
-    <ul id="files"></ul>
-    <button value="cancel">Schließen</button>
-  </form>
-</dialog>
 <div id="toast" hidden></div>
 <script type="module" src="app.js"></script>
 </body>

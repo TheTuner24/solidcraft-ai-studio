@@ -54,7 +54,7 @@ Vor jedem Push `git diff --cached` auf solche Inhalte prüfen.
   - Zugangsschlüssel
   - Agent ohne Shell und Dateien, Pfade auf den Studio-Ordner begrenzt
   - keine API-Schlüssel im Browser
-  - Originale nie überschreiben
+  - Das Studio öffnet und speichert keine Dateien, das macht der Benutzer am PC. Der Agent darf es auch nicht.
 
 ## Technische Eckpunkte
 

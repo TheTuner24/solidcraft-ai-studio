@@ -2,7 +2,7 @@
 // gespeicherte Runden abgelegt (neues Format mit vollständigen Strichen und altes Format nur mit
 // 3D-Punkten). Nach erneutem Öffnen müssen Skizze, Farben, Blickwinkel und Text zurückkommen.
 //
-// Läuft nur gegen eine getrennte Test-Instanz (öffnet Dateien), siehe docs/FUNKTIONSTEST.md A4:
+// Läuft nur gegen eine getrennte Test-Instanz (öffnet Dateien in SolidCraft), siehe docs/FUNKTIONSTEST.md A4:
 //   PROJEKTE=/tmp/studio-test STUDIO_URL=… CONTROL_PORT=7980 node skizze_laden.mjs
 import { chromium } from 'playwright-core';
 import fs from 'node:fs';
@@ -48,10 +48,12 @@ const dbg = (fn, arg) => page.evaluate(([f, a]) => window.studioDebug[f](a), [fn
 const box = async () => page.locator('#viewport').boundingBox();
 const toScreen = async (x, y, z) => { const b = await box(); const [sx, sy] = await page.evaluate(([x, y, z]) => window.studioDebug.worldToScreen(x, y, z), [x, y, z]); return [b.x + sx, b.y + sy]; };
 const stroke = async (pts) => { await page.mouse.move(...pts[0]); await page.mouse.down(); for (const q of pts.slice(1)) await page.mouse.move(...q, { steps: 6 }); await page.mouse.up(); };
+// Öffnen passiert am PC in SolidCraft, das Tablet folgt der offenen Datei.
 const openProject = async () => {
-  await page.click('#open');
-  await page.locator('#files button', { hasText: 'SkizzeLaden' }).first().click();
-  await page.waitForTimeout(4000);
+  await exec('file.new', { name: 'Zwischendurch' });
+  await page.waitForTimeout(4500);
+  await exec('doc.open', { path: sc });
+  await page.waitForTimeout(4500);
 };
 
 await page.goto(URL);

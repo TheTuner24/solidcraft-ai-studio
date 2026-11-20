@@ -275,7 +275,9 @@ if (MODE === 'smoke') {
   s = await state();
   ok(s.strokes === 0, '„Striche löschen“ entfernt alle Striche');
 } else {
-  await page.click('#new'); await page.waitForTimeout(2500);
+  // Neu und Speichern passieren am PC in SolidCraft, das Tablet folgt.
+  await control('engine.execute', { command: 'file.new', params: { name: 'Funktionstest' } });
+  await page.waitForTimeout(4500);
   ok((await volume()) === 0, 'Neues, leeres Bauteil');
   await page.click('#top'); await page.waitForTimeout(500);
   await stroke([await toScreen(-30, -20, 0), await toScreen(32, -19, 0), await toScreen(30, 21, 0),
@@ -325,9 +327,15 @@ if (MODE === 'smoke') {
   await overlayClear('Runde 3');
   await page.screenshot({ path: path.join(OUT, 'full-3-farben.png') });
 
-  await page.click('#save'); await page.waitForTimeout(2500);
-  const saved = (await page.textContent('#toast')) || '';
-  ok(/Gespeichert: .*Funktionstest.*\.sc/.test(saved), saved.replace(os.homedir(), '~'));
+  const projekte = process.env.PROJEKTE || path.join(os.homedir(), 'CAD/ai-studio');
+  const target = path.join(projekte, 'Funktionstest.sc');
+  fs.rmSync(target, { force: true }); fs.rmSync(target.replace(/\.sc$/, '.studio'), { recursive: true, force: true });
+  await control('engine.execute', { command: 'file.save_as', params: { path: target } });
+  await page.waitForTimeout(4500);
+  const name = (await page.textContent('#docname')) || '';
+  ok(fs.existsSync(target) && /^Funktionstest\.sc/.test(name), `Am PC gespeichert, Tablet zeigt „${name}“`);
+  const runden = fs.existsSync(target.replace(/\.sc$/, '.studio')) ? fs.readdirSync(target.replace(/\.sc$/, '.studio')).filter((f) => f.endsWith('.json') && f.startsWith('runde-')).length : 0;
+  ok(runden === 3, `Rundenprotokolle zur gespeicherten Datei übernommen (${runden} von 3)`);
 }
 
 await browser.close();
