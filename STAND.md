@@ -5,7 +5,7 @@
 > Die Anforderungen stehen in [docs/AUFTRAG.md](docs/AUFTRAG.md), der Funktionstest in
 > [docs/FUNKTIONSTEST.md](docs/FUNKTIONSTEST.md).
 
-**Letzte Aktualisierung:** 20.11.2026 · **Version:** 0.1.0 · **Getestet mit:** SolidCraft 0.44.1,
+**Letzte Aktualisierung:** 20.11.2026 · **Version:** 0.1.0 · **Getestet mit:** SolidCraft 0.45.0 (vorher 0.44.1),
 Claude Code 2.1.x, Firefox für Android, Chrome (Testautomatik), Linux (CachyOS), RTX 4060 8 GB,
 Galaxy Tab S8+
 
@@ -89,6 +89,7 @@ Galaxy Tab S8+
 | 19.11.2026 | Abschnitt Sprache: `--smoke` mit Mikrofon-Attrappe (WAV aus Piper, Echo-Erkennung, 🔊 aus, Rückfrage vorlesen → automatisch zuhören → Text im Feld, Dazwischenreden mit 🎤) | bestanden (34 Prüfungen) |
 | 20.11.2026 | Skizze zurückholen: `--smoke` (Senden abgefangen, Skizze mit Farben und Blickwinkel zurück, sichtbar) | bestanden. Dazu Testkorrektur: vor der Handballen-Prüfung warten, bis die Kamera nach der Fingerdrehung stillsteht. |
 | 20.11.2026 | Skizze über Neustarts: `skizze_laden.mjs` (Test-Instanz), dazu `--smoke` und `--full` | bestanden (9 + alle Smoke-Prüfungen, Volltest 3 Runden exakt). Mit einer Kopie eines echten Projekts (altes Format) kam die Skizze mit 28 Strichen und Text zurück. |
+| 20.11.2026 | Update auf SolidCraft 0.45.0: `--smoke`, `skizze_laden.mjs`, `--full` (Test-Instanz), Projekt aus 0.44.1 öffnen | bestanden (Volltest 3 Runden exakt). Ein mit 0.44.1 gespeichertes Projekt öffnet samt Skizze. |
 | 20.11.2026 | **Praxistest auf dem Galaxy Tab S8+ durch den Benutzer** | Druck ✅, Handballen ✅, Drehen/Zoomen ✅, mehrere Farben mit verschiedenen Anweisungen ✅, Sprachausgabe ✅, **Radieren mit S-Pen-Taste ❌** (radiert nicht). Rest der Prüfliste noch offen. |
 | 19.11.2026 | Abschnitt Sprache: `--full` (4 Läufe) | Ergebnisse der KI immer exakt, Antwort wird vorgelesen. Strichfehler in Runde 2 in 3 Läufen, nach der Umstellung auf die CPU-Leinwand 2/2 bestanden |
 | 19.11.2026 | Abschnitt Linienfarben: `--full` mit Runde 3 (zwei Farben, zwei Aufgaben, Legende aus dem Text) | bestanden. Runde 3: 11 621 mm³ (Soll 11 621), Legende `{"grün":"Bohrung Ø 4 durchgehend","violett":"Fase 2 mm"}` |
