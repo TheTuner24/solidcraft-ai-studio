@@ -30,7 +30,7 @@ Schnittstellen von SolidCraft: den Steuerkanal (`solidcraft --control PORT`) und
 | S Pen: Druck → Strichbreite, Handballen-Erkennung, Stifttaste radiert, Stift zeichnet / Finger navigiert | ✅ automatisch getestet (Tablet-Prüfung 🟡) |
 | KI lokal über Ollama (Umschalter) | ⛔ experimentell, mit 8 GB Grafikspeicher nicht brauchbar |
 | Linienfarben: Farbe je Strich, Bedeutung legst du per Sprache/Text fest („grün ist eine Bohrung Ø 4“) | ✅ getestet (Tablet-Bedienung 🟡) |
-| Foto mit der Tablet-Kamera (📷): zeigt der KI ein Vorbild oder das gemeinte Teil, Form kommt aus dem Foto, Maße aus dem Text | ✅ automatisch getestet (Tablet-Kamera 🟡) |
+| Foto mit der Tablet-Kamera (📷): zeigt der KI ein Vorbild oder das gemeinte Teil, Form kommt aus dem Foto, Maße aus dem Text | ✅ getestet (auch am Tablet) |
 | Vektorisierung der Striche, native bemaßte SolidCraft-Skizzen | 📋 geplant |
 | Drahtlos über WLAN (ohne USB) | 📋 geplant |
 

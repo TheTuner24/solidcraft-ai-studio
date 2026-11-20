@@ -31,7 +31,7 @@ updates can be taken without merging.
 | S Pen: pressure → line width, palm rejection, pen button erases, pen draws / finger navigates | ✅ tested automatically (tablet check 🟡) |
 | Local AI via Ollama (toggle) | ⛔ experimental, not usable with 8 GB VRAM |
 | Line colours: colour per stroke, you define the meaning by voice/text ("green is a Ø 4 hole") | ✅ tested (tablet use 🟡) |
-| Photo with the tablet camera (📷): shows the AI a model or the part you mean; shape from the photo, sizes from the text | ✅ automatically tested (tablet camera 🟡) |
+| Photo with the tablet camera (📷): shows the AI a model or the part you mean; shape from the photo, sizes from the text | ✅ tested (also on the tablet) |
 | Stroke vectorisation, native dimensioned SolidCraft sketches | 📋 planned |
 | Wireless over Wi-Fi (no USB) | 📋 planned |
 
